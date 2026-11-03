@@ -96,3 +96,15 @@ html[data-nutrition-theme="blue"] .card{background:linear-gradient(135deg,rgba(2
 .target-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .target-actions .btn{min-width:0;font-size:12px;min-height:42px;padding:9px}
 @media(max-width:360px){.macro-donut{width:116px;height:116px}.macro-donut-centre{width:86px;height:86px}.macro-donut-centre strong{font-size:20px}.budget-visual{gap:10px}.budget-remaining{font-size:19px}}
+
+/* Nutrition Lab v0.4: settings navigation and page layout */
+.bottom-nav[hidden] {display:none!important}
+.app-shell.settings-mode {padding-bottom:calc(22px + env(safe-area-inset-bottom))}
+.settings-page-header {display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:16px}
+.settings-page-header .eyebrow {text-align:right}
+.settings-back {min-height:37px;padding:8px 13px}
+.settings-static-header {display:flex;align-items:center;gap:11px;padding:17px}
+.settings-static-header .settings-option-label {flex:1}
+.settings-card + .settings-card {margin-top:12px}
+.settings-card .settings-detail .page-subtitle {margin-bottom:7px}
+.settings-card .settings-detail .field-help {line-height:1.5}
