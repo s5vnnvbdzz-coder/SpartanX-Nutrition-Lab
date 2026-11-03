@@ -43,3 +43,12 @@ Static files: `index.html`, `styles.css`, `app.js`. No npm install or build tool
 - Scanner library: [html5-qrcode](https://github.com/mebjas/html5-qrcode) (Apache-2.0).
 
 This is a prototype for testing, not a validated dietary analysis or a live production service.
+
+## Nutrition Lab v0.2 — interface test
+
+- **Targets:** moved from bottom navigation to a centred dartboard icon in the upper-right of Energy Balance.
+- **Date:** calendar selection uses a calendar-only icon button; previous/next-day arrows remain.
+- **Liquids:** dedicated diary card directly under Snacks, with one-tap 250 ml water logging, custom water amounts, and drink entries. Items entered in ml contribute to the fluid subtotals; all drinks contribute to calorie and macro totals.
+- **Barcode flow:** one Scan Barcode button starts the camera; scanning stops after successful lookup or when leaving Scan. Create Food remains alongside it; manual barcode entry is still available.
+- **Settings:** header icon redrawn; Appearance (Spartan Red, Olympian Gold and Arctic Blue themes), About this prototype, and Your Data (export or clear) now live here. The bottom navigation has Today, Scan and My Foods only.
+- **Data:** the existing local-storage key and prior nutrition logs are preserved. Themes are also saved locally. This project remains separate from SpartanX and AscensionX.
