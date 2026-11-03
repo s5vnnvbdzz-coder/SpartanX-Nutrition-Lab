@@ -25,7 +25,7 @@
   const $ = (query) => document.querySelector(query);
   const $$ = (query) => [...document.querySelectorAll(query)];
   const today = () => localDate(new Date());
-  const ui = { tab: 'today', date: today(), food: null, amount: 100, meal: 'Breakfast', scanBusy: false, scanner: null, scannerActive: false, manualBarcode: '', toastTimer: null, pendingMeal: null, waterAmount: 250, autoBalance: true };
+  const ui = { tab: 'today', date: today(), food: null, amount: 100, meal: 'Breakfast', scanBusy: false, scanner: null, scannerActive: false, manualBarcode: '', toastTimer: null, pendingMeal: null, waterAmount: 250, autoBalance: true, settingsReturnTab: 'today' };
   let state = loadState();
 
   function localDate(date) {
@@ -91,6 +91,11 @@
   function render() {
     $$('.nav-item').forEach(n => {n.classList.toggle('active', n.dataset.tab === ui.tab);n.setAttribute('aria-current', n.dataset.tab === ui.tab ? 'page' : 'false');});
     document.documentElement.dataset.nutritionTheme=state.theme||'red';
+    const isSettings = ui.tab === 'settings';
+    const bottomNav = $('.bottom-nav');
+    if(bottomNav) bottomNav.hidden = isSettings;
+    const shell = $('.app-shell');
+    if(shell) shell.classList.toggle('settings-mode', isSettings);
     const main = $('#main-content');
     main.innerHTML = ui.tab === 'today' ? renderToday() : ui.tab === 'scan' ? renderScan() : ui.tab === 'foods' ? renderFoods() : ui.tab === 'targets' ? renderTargets() : renderSettings();
   }
@@ -241,13 +246,21 @@
   }
   function renderSettings() {
     const themes=[['red','Spartan Red','Classic red and charcoal'],['gold','Olympian Gold','Gold and charcoal'],['blue','Arctic Blue','Blue and charcoal']];
-    return `<div class="eyebrow">APP PREFERENCES</div><h1 class="page-title">Settings.</h1><p class="page-subtitle">Make Nutrition Lab your own and manage your locally saved data.</p>
-      <section class="card settings-card"><details open><summary><span class="settings-option-icon">◈</span><span class="settings-option-label"><strong>Appearance</strong><small>Choose a theme</small></span><span class="settings-chevron">⌄</span></summary>
-      <div class="settings-detail"><div class="theme-list">${themes.map(([id,name,description])=>`<button class="theme-option ${state.theme===id?'selected':''}" type="button" data-action="set-theme" data-theme="${id}" aria-pressed="${state.theme===id}"><span class="theme-swatch theme-${id}"></span><span><strong>${name}</strong><small>${description}</small></span><span class="theme-check">${state.theme===id?'✓':''}</span></button>`).join('')}</div></div></details></section>
-      <section class="card settings-card"><details><summary><span class="settings-option-icon">ⓘ</span><span class="settings-option-label"><strong>About this prototype</strong><small>App details and data sources</small></span><span class="settings-chevron">⌄</span></summary>
-      <div class="settings-detail"><p class="page-subtitle">SpartanX Nutrition Lab is an independent testing app. Barcode data comes from Open Food Facts, and some products may have missing nutrients or vitamins and minerals.</p><p class="field-help">Always verify food packaging. Open Food Facts data and images are subject to their respective open licences.</p></div></details></section>
-      <section class="card settings-card"><details><summary><span class="settings-option-icon">▤</span><span class="settings-option-label"><strong>Your Data</strong><small>Back up or clear saved diary entries</small></span><span class="settings-chevron">⌄</span></summary>
-      <div class="settings-detail"><p class="page-subtitle">${state.entries.length} diary entries · ${state.foods.length} manual foods · ${state.recent.length} scanned/recent foods</p><div class="action-row"><button class="btn btn-ghost" id="export-data">Export backup</button><button class="btn btn-ghost danger" id="clear-data">Clear saved data</button></div><p class="field-help">Nutrition data is stored in this browser, not synced to SpartanX or other devices. Clearing browser data may erase it.</p></div></details></section>`;
+    return `<div class="settings-page-header">
+      <button class="btn btn-ghost btn-sm settings-back" type="button" data-action="back-settings" aria-label="Back to previous page"><span aria-hidden="true">←</span> Back</button>
+      <span class="eyebrow">APP PREFERENCES</span></div>
+      <h1 class="page-title">Settings.</h1><p class="page-subtitle">Make Nutrition Lab your own and manage your locally saved data.</p>
+      <section class="card settings-card">
+        <div class="settings-static-header"><span class="settings-option-icon" aria-hidden="true">ⓘ</span><span class="settings-option-label"><strong>About this prototype</strong><small>App details and data sources</small></span></div>
+        <div class="settings-detail"><p class="page-subtitle">SpartanX Nutrition Lab is an independent testing app. Barcode data comes from Open Food Facts, and some products may have missing nutrients or vitamins and minerals.</p><p class="field-help">Always verify food packaging. Open Food Facts data and images are subject to their respective open licences.</p></div>
+      </section>
+      <section class="card settings-card"><details id="appearance-details"><summary><span class="settings-option-icon" aria-hidden="true">◈</span><span class="settings-option-label"><strong>Appearance</strong><small>Choose a theme</small></span><span class="settings-chevron" aria-hidden="true">⌄</span></summary>
+        <div class="settings-detail"><div class="theme-list">${themes.map(([id,name,description])=>`<button class="theme-option ${state.theme===id?'selected':''}" type="button" data-action="set-theme" data-theme="${id}" aria-pressed="${state.theme===id}"><span class="theme-swatch theme-${id}"></span><span><strong>${name}</strong><small>${description}</small></span><span class="theme-check">${state.theme===id?'✓':''}</span></button>`).join('')}</div></div></details>
+      </section>
+      <section class="card settings-card">
+        <div class="settings-static-header"><span class="settings-option-icon" aria-hidden="true">▤</span><span class="settings-option-label"><strong>Your Data</strong><small>Back up or clear saved diary entries</small></span></div>
+        <div class="settings-detail"><p class="page-subtitle">${state.entries.length} diary entries · ${state.foods.length} manual foods · ${state.recent.length} scanned/recent foods</p><div class="action-row"><button class="btn btn-ghost" id="export-data">Export backup</button><button class="btn btn-ghost danger" id="clear-data">Clear saved data</button></div><p class="field-help">Nutrition data is stored in this browser, not synced to SpartanX or other devices. Clearing browser data may erase it.</p></div>
+      </section>`;
   }
 
   function fromOpenFoodFacts(product, code) {
@@ -437,7 +450,8 @@
       else if(action==='go-scan'){ui.pendingMeal=null;await changeTab('scan');}
       else if(action==='open-targets'){await changeTab('targets');}
       else if(action==='back-today'){await changeTab('today');}
-      else if(action==='set-theme'){const theme=btn.dataset.theme;if(THEMES.includes(theme)){state.theme=theme;persist();render();toast('Theme applied.');}}
+      else if(action==='back-settings'){await changeTab(['today','scan','foods','targets'].includes(ui.settingsReturnTab) ? ui.settingsReturnTab : 'today');}
+      else if(action==='set-theme'){const theme=btn.dataset.theme;if(THEMES.includes(theme)){const wasOpen=$('#appearance-details')?.open;state.theme=theme;persist();render();const details=$('#appearance-details');if(details && wasOpen)details.open=true;toast('Theme applied.');}}
       else if(action==='open-manual'){openManual();}
       else if(action==='balance-macros'){const form=$('#goal-form');if(form){balanceTargetInputs(form,'carbs');const preview=$('#macro-budget-preview');if(preview)preview.innerHTML=macroBudgetMarkup(readTargetForm(form));toast('Remaining calories balanced.');}}
       else if(action==='water-down'){ui.waterAmount=Math.max(10,ui.waterAmount-10);render();}
@@ -461,7 +475,7 @@
       }
       return;
     }
-    if(ev.target.closest('#header-settings')) {await changeTab('settings');return;}
+    if(ev.target.closest('#header-settings')) {if(ui.tab!=='settings'){ui.settingsReturnTab=ui.tab;await changeTab('settings');}return;}
     if(ev.target.closest('#scan-barcode')) {await startCamera();return;}
     if(ev.target.closest('#close-product')){closeProduct();return;}
     if(ev.target.closest('#close-manual')||ev.target.closest('#cancel-manual')){closeManual();return;}
