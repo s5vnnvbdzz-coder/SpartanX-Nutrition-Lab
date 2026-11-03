@@ -585,6 +585,7 @@
 
   document.addEventListener('click',async(ev)=>{
     if(ev.target.id==='settings-overlay'){closeSettingsModal();return;}
+    if(ev.target.id==='scanner-overlay'){await cancelScan();return;}
     const tab=ev.target.closest('[data-tab]');if(tab){if(tab.dataset.tab==='scan')ui.pendingMeal=null;await changeTab(tab.dataset.tab);return;}
     const btn=ev.target.closest('[data-action]');
     if(btn){
@@ -606,13 +607,17 @@
       }}
       else if(action==='open-manual'){openManual();}
       else if(action==='balance-macros'){const form=$('#goal-form');if(form){balanceTargetInputs(form,'carbs');const preview=$('#macro-budget-preview');if(preview)preview.innerHTML=macroBudgetMarkup(readTargetForm(form));toast('Remaining calories balanced.');}}
+      else if(action==='portion-minus'){stepServing(-1);}
+      else if(action==='portion-plus'){stepServing(1);}
+      else if(action==='discard-product'){closeProduct();}
+      else if(action==='rescan-barcode'){ui.scanDetected=false;await startCamera();}
       else if(action==='water-down'){ui.waterAmount=Math.max(10,ui.waterAmount-10);render();}
       else if(action==='water-up'){ui.waterAmount=Math.min(5000,ui.waterAmount+10);render();}
       else if(action==='add-water'){addWater(ui.waterAmount);}
       else if(action==='custom-water'){openProduct(WATER_FOOD,'Liquids');}
       else if(action==='add-to-meal'){ui.pendingMeal=btn.dataset.meal;await changeTab('scan');}
       else if(action==='example-barcode'){const el=$('#barcode-input');if(el){el.value='3017620422003';await lookupBarcode(el.value);}}
-      else if(action==='manual-unfound'){openManual(ui.manualBarcode);}
+      else if(action==='manual-unfound'){if(scannerIsOpen())await cancelScan();openManual(ui.manualBarcode);}
       else if(action==='open-food'){
         const food=getLibrary().find(f=>f.id===btn.dataset.id);if(food)openProduct(food);
       }
@@ -630,6 +635,7 @@
     if(ev.target.closest('#header-settings')) {await openSettingsModal();return;}
     if(ev.target.closest('#close-settings')) {closeSettingsModal();return;}
     if(ev.target.closest('#scan-barcode')) {await startCamera();return;}
+    if(ev.target.closest('#close-scanner')||ev.target.closest('#cancel-scanner')){await cancelScan();return;}
     if(ev.target.closest('#close-product')){closeProduct();return;}
     if(ev.target.closest('#close-manual')||ev.target.closest('#cancel-manual')){closeManual();return;}
     if(ev.target.closest('#confirm-log')){logFood();return;}
@@ -642,6 +648,7 @@
   });
   document.addEventListener('submit',(ev)=>{
     if(ev.target.id==='barcode-form'){ev.preventDefault();lookupBarcode($('#barcode-input').value);}
+    if(ev.target.id==='scanner-manual-form'){ev.preventDefault();lookupBarcode($('#scanner-manual-input').value);}
     if(ev.target.id==='manual-form'){saveManual(ev);}
     if(ev.target.id==='goal-form'){
       ev.preventDefault();const form=ev.target;const next={};
@@ -655,11 +662,12 @@
     const target=ev.target;
     if(target.id==='diary-date'){if(/^\d{4}-\d{2}-\d{2}$/.test(target.value)){ui.date=target.value;render();}}
     if(target.id==='meal-select'){ui.meal=target.value;}
+    if(target.id==='portion-unit'){changeServingUnit(target.value);}
     if(target.id==='auto-balance'){ui.autoBalance=target.checked;refreshMacroBudget(target.form || $('#goal-form'),'carbs');}
   });
   document.addEventListener('input',(ev)=>{
     if(ev.target.closest?.('#goal-form') && ['kcal','protein','carbs','fat'].includes(ev.target.name)) refreshMacroBudget(ev.target.form || $('#goal-form'),ev.target.name);
-    if(ev.target.id==='portion-input'){ui.amount=Number(ev.target.value);renderPortionPreview();}
+    if(ev.target.id==='portion-input'){updateServingAmount(Number(ev.target.value));}
     if(ev.target.id==='food-search'){
       const q=ev.target.value.trim().toLowerCase();const foods=getLibrary().filter(f=>`${f.name} ${f.brand||''} ${f.barcode||''}`.toLowerCase().includes(q));
       const results=$('#food-results');if(results)results.innerHTML=renderFoodResults(foods);
@@ -680,8 +688,12 @@
       }
       return;
     }
-    if(ev.key==='Escape'){if(!$('#product-overlay').classList.contains('hidden'))closeProduct();else if(!$('#manual-overlay').classList.contains('hidden'))closeManual();}
+    if(ev.key==='Escape'){
+      if(scannerIsOpen()){ev.preventDefault();void cancelScan();}
+      else if(!$('#product-overlay').classList.contains('hidden'))closeProduct();
+      else if(!$('#manual-overlay').classList.contains('hidden'))closeManual();
+    }
   });
-  document.addEventListener('visibilitychange',()=>{if(document.hidden&&ui.scannerActive)stopCamera();});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden&&scannerIsOpen())void cancelScan();});
   render();
 })();
