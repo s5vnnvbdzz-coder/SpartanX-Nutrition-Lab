@@ -483,10 +483,6 @@
       <div class="card-header" style="margin:11px 0"><div class="section-heading">Per 100 ${esc(food.unit)}</div><span class="tag">NUTRITION FACTS</span></div>
       <div class="product-stat-grid"><div class="product-stat red"><strong>${pretty(per100.kcal,0)}</strong><small>kcal</small></div><div class="product-stat blue"><strong>${pretty(per100.protein)}</strong><small>Protein g</small></div><div class="product-stat gold"><strong>${pretty(per100.carbs)}</strong><small>Carbs g</small></div><div class="product-stat purple"><strong>${pretty(per100.fat)}</strong><small>Fat g</small></div></div>
       ${notEnough.length ? `<p class="footnote danger">Missing values: ${notEnough.map(k=>esc(k)).join(', ')}. Missing values are not assumed to be zero.</p>` : ''}
-      <div class="section-line"><h2>Detailed nutrition</h2></div>
-      <div class="nutri-list">${nutrientRow('Energy',n.kj,'kJ')}${nutrientRow('Energy',n.kcal,'kcal')}${nutrientRow('Protein',n.protein)}${nutrientRow('Carbohydrates',n.carbs)}${nutrientRow('  of which sugars',n.sugar)}${nutrientRow('Fat',n.fat)}${nutrientRow('  of which saturates',n.satFat)}${nutrientRow('Fibre',n.fibre)}${nutrientRow('Salt',n.salt)}${nutrientRow('Sodium',n.sodium===null?null:n.sodium*1000,'mg')}</div>
-      <div class="section-line"><h2>Vitamins & minerals</h2><span class="chip">${micros.length} available</span></div>
-      ${micros.length?`<div class="nutri-list">${micros.map(([key,label,unit,factor])=>nutrientRow(label,food.micros[key]*factor,unit)).join('')}</div>`:'<div class="nutri-empty">No vitamin or mineral values are reported for this product. This does not mean the food contains none.</div>'}
       <div class="section-line"><h2>Log to diary</h2></div>
       <div class="portion-controls">
         <div class="section-heading" style="margin-bottom:11px">${food.unit==='ml'?'Drink quantity':'Food quantity'}</div>
@@ -501,7 +497,11 @@
         <div class="portion-preview" id="portion-preview"></div>
         <div class="product-footer product-actions"><button type="button" class="btn btn-ghost" data-action="discard-product">Cancel / Discard</button><button type="button" class="btn btn-primary" id="confirm-log">Log</button></div>
       </div>
-      <p class="footnote" style="margin-top:14px">Nutrition is based on values per 100 ${esc(food.unit)} as supplied by Open Food Facts. Verify labels if accuracy matters.</p>`;
+      <p class="footnote" style="margin-top:14px">Nutrition is based on values per 100 ${esc(food.unit)} as supplied by Open Food Facts. Verify labels if accuracy matters.</p>      <div class="section-line"><h2>Detailed nutrition</h2></div>
+      <div class="nutri-list">${nutrientRow('Energy',n.kj,'kJ')}${nutrientRow('Energy',n.kcal,'kcal')}${nutrientRow('Protein',n.protein)}${nutrientRow('Carbohydrates',n.carbs)}${nutrientRow('  of which sugars',n.sugar)}${nutrientRow('Fat',n.fat)}${nutrientRow('  of which saturates',n.satFat)}${nutrientRow('Fibre',n.fibre)}${nutrientRow('Salt',n.salt)}${nutrientRow('Sodium',n.sodium===null?null:n.sodium*1000,'mg')}</div>
+      <div class="section-line"><h2>Vitamins & minerals</h2><span class="chip">${micros.length} available</span></div>
+      ${micros.length?`<div class="nutri-list">${micros.map(([key,label,unit,factor])=>nutrientRow(label,food.micros[key]*factor,unit)).join('')}</div>`:'<div class="nutri-empty">No vitamin or mineral values are reported for this product. This does not mean the food contains none.</div>'}
+`;
     renderPortionPreview();
   }
   function renderPortionPreview() {
