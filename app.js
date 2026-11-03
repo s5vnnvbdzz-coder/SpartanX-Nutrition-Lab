@@ -590,6 +590,88 @@
     $('#header-settings')?.focus();
   }
 
+
+  // Pull to refresh on the iPhone Home Screen web app. Never touches local diary data.
+  const pullRefresh={tracking:false,refreshing:false,startX:0,startY:0,distance:0};
+  const PULL_REFRESH_THRESHOLD=88;
+  function refreshGestureBlocked(target){
+    if(pullRefresh.refreshing || ui.tab==='targets' || ui.scanBusy || ui.scannerActive || ui.scannerStarting)return true;
+    const currentScroll=window.scrollY||document.documentElement.scrollTop||0;
+    if(currentScroll>1)return true;
+    if(target?.closest?.('button, input, select, textarea, a, label, [contenteditable="true"], [role="button"]'))return true;
+    return ['#settings-overlay','#scanner-overlay','#product-overlay','#manual-overlay']
+      .some(selector=>{const overlay=$(selector);return overlay && !overlay.classList.contains('hidden');});
+  }
+  function clearPullRefresh(){
+    pullRefresh.tracking=false;
+    pullRefresh.distance=0;
+    if(pullRefresh.refreshing)return;
+    const indicator=$('#pull-refresh-indicator');
+    if(!indicator)return;
+    indicator.classList.remove('visible','ready','refreshing');
+    indicator.style.removeProperty('--pull-offset');
+    indicator.setAttribute('aria-hidden','true');
+    const label=indicator.querySelector('.pull-refresh-label');
+    if(label)label.textContent='Pull down to refresh';
+  }
+  function refreshIndicator(distance){
+    const indicator=$('#pull-refresh-indicator');if(!indicator)return;
+    const ready=distance>=PULL_REFRESH_THRESHOLD;
+    indicator.classList.add('visible');
+    indicator.classList.toggle('ready',ready);
+    indicator.style.setProperty('--pull-offset',Math.min(60,Math.round(distance*.45))+'px');
+    indicator.setAttribute('aria-hidden','false');
+    const label=indicator.querySelector('.pull-refresh-label');
+    if(label)label.textContent=ready?'Release to refresh':'Pull down to refresh';
+  }
+  function reloadLatestNutritionLab(){
+    // A changing query parameter bypasses an outdated cached index.html while
+    // leaving the app's localStorage, saved foods and nutrition targets intact.
+    try{
+      const url=new URL(window.location.href);
+      url.searchParams.set('_refresh',String(Date.now()));
+      window.location.replace(url.toString());
+    }catch{
+      window.location.reload();
+    }
+  }
+  document.addEventListener('touchstart',ev=>{
+    if(ev.touches?.length!==1 || refreshGestureBlocked(ev.target)){clearPullRefresh();return;}
+    pullRefresh.tracking=true;
+    pullRefresh.startX=ev.touches[0].clientX;
+    pullRefresh.startY=ev.touches[0].clientY;
+    pullRefresh.distance=0;
+  },{passive:true});
+  document.addEventListener('touchmove',ev=>{
+    if(!pullRefresh.tracking || pullRefresh.refreshing || ev.touches?.length!==1)return;
+    const dx=Math.abs(ev.touches[0].clientX-pullRefresh.startX);
+    const dy=ev.touches[0].clientY-pullRefresh.startY;
+    if(dy<=0 || dx>Math.max(26,dy*.7) || (window.scrollY||document.documentElement.scrollTop||0)>1){
+      clearPullRefresh();return;
+    }
+    if(dy<10)return;
+    if(ev.cancelable)ev.preventDefault();
+    pullRefresh.distance=Math.min(150,dy);
+    refreshIndicator(pullRefresh.distance);
+  },{passive:false});
+  document.addEventListener('touchend',()=>{
+    if(!pullRefresh.tracking || pullRefresh.refreshing)return;
+    const ready=pullRefresh.distance>=PULL_REFRESH_THRESHOLD;
+    if(!ready){clearPullRefresh();return;}
+    pullRefresh.tracking=false;
+    pullRefresh.refreshing=true;
+    const indicator=$('#pull-refresh-indicator');
+    if(indicator){
+      indicator.classList.remove('ready');
+      indicator.classList.add('visible','refreshing');
+      indicator.setAttribute('aria-hidden','false');
+      const label=indicator.querySelector('.pull-refresh-label');
+      if(label)label.textContent='Refreshing Nutrition Lab…';
+    }
+    setTimeout(reloadLatestNutritionLab,130);
+  },{passive:true});
+  document.addEventListener('touchcancel',clearPullRefresh,{passive:true});
+
   document.addEventListener('click',async(ev)=>{
     if(ev.target.id==='settings-overlay'){closeSettingsModal();return;}
     if(ev.target.id==='scanner-overlay'){await cancelScan();return;}
