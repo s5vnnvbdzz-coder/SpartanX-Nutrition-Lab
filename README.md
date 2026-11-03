@@ -60,3 +60,12 @@ This is a prototype for testing, not a validated dietary analysis or a live prod
 - Auto-balance defaults to on: changing calories, protein, or carbs updates fat to approximately fill the budget. Changing fat instead updates carbs. When a fixed macro selection already exceeds the budget, adjustable macros bottom out at 0 and the preview reports an overage.
 - Auto-balance can be turned off for independent macro edits. There is also a manual balance action. Differences of up to 25 kcal are labelled Balanced.
 - The original local-storage key and existing diary remain unchanged. New files use ?v=0.3 to avoid stale iPhone browser assets.
+
+## Nutrition Lab v0.4 — Home and Settings navigation
+
+- The start screen remains the daily diary, now labelled **Home** instead of Today in the bottom navigation.
+- Settings records which screen opened it and provides an on-screen Back button that returns to Home, Scan, My Foods, or Targets as appropriate.
+- The bottom navigation is hidden on Settings and restored upon leaving; the page uses a reduced bottom inset.
+- Settings shows non-collapsible **About this prototype** at the top, collapsed-by-default **Appearance** second, and non-collapsible **Your Data** last.
+- Choosing a theme while Appearance is expanded keeps it expanded.
+- Static assets use cache-busting version v0.4. All changes are isolated to this repository.
