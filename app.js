@@ -2,7 +2,11 @@
   'use strict';
 
   const STORAGE_KEY = 'spartanx-nutrition-standalone-v1';
-  const MEALS = ['Breakfast', 'Lunch', 'Dinner', 'Snacks'];
+  const MEALS = ['Breakfast', 'Lunch', 'Dinner', 'Snacks', 'Liquids'];
+  const THEMES = ['red', 'gold', 'blue'];
+  const WATER_FOOD = {id:'system:water',name:'Water',barcode:'',brand:'',image:'',source:'manual',unit:'ml',servingAmount:250,n:{kcal:0,kj:0,protein:0,carbs:0,fat:0,sugar:0,satFat:0,fibre:0,salt:0,sodium:0},micros:{}};
+  const TARGET_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5.5"/><circle cx="12" cy="12" r="2"/><path d="m14 10 6-6m-3 0h3v3"/></svg>';
+  const CALENDAR_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 10h18"/></svg>';
   const DEFAULT_GOALS = { kcal: 2500, protein: 160, carbs: 280, fat: 75 };
   const MICRO_MAP = [
     ['vitamin-a','Vitamin A','µg',1e6], ['vitamin-b1','Vitamin B1 (thiamin)','mg',1e3],
@@ -21,7 +25,7 @@
   const $ = (query) => document.querySelector(query);
   const $$ = (query) => [...document.querySelectorAll(query)];
   const today = () => localDate(new Date());
-  const ui = { tab: 'today', date: today(), food: null, amount: 100, meal: 'Breakfast', scanBusy: false, scanner: null, scannerActive: false, manualBarcode: '', toastTimer: null };
+  const ui = { tab: 'today', date: today(), food: null, amount: 100, meal: 'Breakfast', scanBusy: false, scanner: null, scannerActive: false, manualBarcode: '', toastTimer: null, pendingMeal: null };
   let state = loadState();
 
   function localDate(date) {
@@ -43,9 +47,10 @@
         entries: Array.isArray(parsed.entries) ? parsed.entries : [],
         foods: Array.isArray(parsed.foods) ? parsed.foods : [],
         recent: Array.isArray(parsed.recent) ? parsed.recent : [],
-        goals: { ...DEFAULT_GOALS, ...(parsed.goals || {}) }
+        goals: { ...DEFAULT_GOALS, ...(parsed.goals || {}) },
+        theme: THEMES.includes(parsed.theme) ? parsed.theme : 'red'
       };
-    } catch { return { entries: [], foods: [], recent: [], goals: {...DEFAULT_GOALS} }; }
+    } catch { return { entries: [], foods: [], recent: [], goals: {...DEFAULT_GOALS}, theme:'red' }; }
   }
   function persist() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
@@ -85,8 +90,9 @@
   }
   function render() {
     $$('.nav-item').forEach(n => {n.classList.toggle('active', n.dataset.tab === ui.tab);n.setAttribute('aria-current', n.dataset.tab === ui.tab ? 'page' : 'false');});
+    document.documentElement.dataset.nutritionTheme=state.theme||'red';
     const main = $('#main-content');
-    main.innerHTML = ui.tab === 'today' ? renderToday() : ui.tab === 'scan' ? renderScan() : ui.tab === 'foods' ? renderFoods() : renderSettings();
+    main.innerHTML = ui.tab === 'today' ? renderToday() : ui.tab === 'scan' ? renderScan() : ui.tab === 'foods' ? renderFoods() : ui.tab === 'targets' ? renderTargets() : renderSettings();
   }
 
   function macroRow(name, key, colourClass, total) {
@@ -102,18 +108,19 @@
     const pct = progress(total.kcal,calGoal);
     const incomplete = entries.some(e => ['kcal','protein','carbs','fat'].some(k => e.food.n?.[k] === null || e.food.n?.[k] === undefined));
     return `<div class="eyebrow">DAILY PERFORMANCE</div><h1 class="page-title">Fuel your progress.</h1><p class="page-subtitle">Track your nutrition, one meal at a time.</p>
-      <div class="date-row"><button class="small-circle" data-action="prev-date" aria-label="Previous day">‹</button><span class="date-display">${esc(dateLabel)} ${ui.date === today() ? '<span class="tag">TODAY</span>' : ''}</span><input class="date-native" id="diary-date" type="date" value="${esc(ui.date)}" aria-label="Choose diary date"/><button class="small-circle" data-action="next-date" aria-label="Next day">›</button></div>
-      <section class="card"><div class="card-header"><span class="eyebrow">ENERGY BALANCE</span><span class="tag">KCAL</span></div>
+      <div class="date-row"><button class="small-circle" data-action="prev-date" aria-label="Previous day">‹</button><span class="date-display">${esc(dateLabel)} ${ui.date === today() ? '<span class="tag">TODAY</span>' : ''}</span><label class="calendar-picker" aria-label="Choose diary date" title="Choose diary date">${CALENDAR_ICON}<input class="date-native" id="diary-date" type="date" value="${esc(ui.date)}" aria-label="Choose diary date"/></label><button class="small-circle" data-action="next-date" aria-label="Next day">›</button></div>
+      <section class="card"><div class="card-header"><span class="eyebrow">ENERGY BALANCE</span><button class="card-icon-button" data-action="open-targets" title="Daily nutrition targets" aria-label="Daily nutrition targets">${TARGET_ICON}</button></div>
       <div class="energy-wrap"><div class="ring" style="--pct:${pct}%"><div class="ring-inner"><span class="ring-number">${pretty(total.kcal,0)}</span><span class="ring-label">CONSUMED</span><span class="ring-goal">/ ${pretty(calGoal,0)}</span></div></div><div class="energy-side"><span class="eyebrow">${remaining >= 0 ? 'REMAINING' : 'OVER TARGET'}</span><div class="remaining ${remaining<0?'negative':''}">${pretty(Math.abs(remaining),0)}</div><div class="cal-caption">${remaining >= 0 ? 'kcal available in your daily target.' : 'kcal above your daily target.'}</div></div></div>
       <div class="divider"></div><div class="macro-grid">${macroRow('Protein','protein','protein',total)}${macroRow('Carbohydrates','carbs','carbs',total)}${macroRow('Fat','fat','fat',total)}</div>
       ${incomplete ? `<p class="footnote danger">Some foods have missing nutrition values. Totals only include reported values.</p>` : ''}</section>
       <div class="quick-start"><button class="btn btn-primary" data-action="go-scan">▤ &nbsp; Scan barcode</button><button class="btn btn-ghost" data-action="open-manual">＋ &nbsp; Add manually</button></div>
       <div class="section-line"><h2>Food diary</h2><span class="small-label">${entries.length} item${entries.length === 1?'':'s'} logged</span></div>
       ${MEALS.map(meal => renderMeal(meal, entries)).join('')}
-      <p class="footnote">Data is saved on this device only. Backup your diary from Targets before clearing browser data.</p>`;
+      <p class="footnote">Data is saved on this device only. Backup your diary from Settings → Your Data before clearing browser data.</p>`;
   }
   function renderMeal(meal, entries) {
     const matching = entries.filter(e=>e.meal===meal);
+    if(meal==='Liquids') return renderLiquids(matching);
     const kcal = sumEntries(matching).kcal;
     return `<section class="card meal-card"><div class="meal-top"><div class="meal-heading">${esc(meal)}</div><div style="display:flex;align-items:center;gap:10px"><span class="meal-total">${pretty(kcal,0)} kcal</span><button class="btn btn-sm btn-soft" data-action="add-to-meal" data-meal="${esc(meal)}">+ Add</button></div></div>
       ${matching.length ? matching.map(e => {
@@ -122,13 +129,26 @@
       }).join('') : '<div class="meal-empty">Nothing logged yet</div>'}</section>`;
   }
 
+
+  function renderLiquids(matching) {
+    const kcal=sumEntries(matching).kcal;
+    const water=matching.filter(e=>e.food?.id==='system:water' && e.unit==='ml').reduce((v,e)=>v+Number(e.amount||0),0);
+    const other=matching.filter(e=>e.food?.id!=='system:water' && e.unit==='ml').reduce((v,e)=>v+Number(e.amount||0),0);
+    return `<section class="card meal-card liquid-card"><div class="meal-top"><div><div class="meal-heading">Liquids</div><div class="liquid-summary">Water ${pretty(water,0)} ml · Other drinks ${pretty(other,0)} ml</div></div><span class="meal-total">${pretty(kcal,0)} kcal</span></div>
+      <div class="liquid-actions"><button class="btn btn-soft" data-action="add-water">+ 250 ml Water</button><button class="btn btn-ghost" data-action="add-to-meal" data-meal="Liquids">+ Add Drink</button></div>
+      <button class="muted-button liquid-custom" data-action="custom-water">Log a different water amount</button>
+      ${matching.length ? matching.map(e => {
+        const s=stats(e.food,e.amount),photo=safeImage(e.food.image);
+        return `<div class="meal-entry"><div class="meal-entry-icon">${photo?`<img src="${esc(photo)}" alt="" loading="lazy"/>`:'💧'}</div><div class="meal-entry-content"><div class="meal-entry-name">${esc(e.food.name)}</div><div class="meal-entry-detail">${pretty(e.amount)} ${esc(e.unit)} · P ${pretty(s.protein)}g · C ${pretty(s.carbs)}g · F ${pretty(s.fat)}g</div></div><div class="meal-entry-action"><strong>${pretty(s.kcal,0)} kcal</strong><button class="tiny-action" data-action="remove-entry" data-id="${esc(e.id)}">Remove</button></div></div>`;
+      }).join('') : '<div class="meal-empty">No drinks logged for this day</div>'}
+      <p class="liquid-footnote">Fluid totals include entries recorded in ml. Drinks also contribute to daily calories and macros.</p></section>`;
+  }
+
   function renderScan() {
     return `<div class="eyebrow">BARCODE LOOKUP</div><h1 class="page-title">Scan. Check. Log.</h1><p class="page-subtitle">Find nutrition facts with Open Food Facts, then log exactly how much you consumed.</p>
       <section class="scan-panel"><div class="card-header" style="margin-bottom:13px"><span class="section-heading">Camera scanner</span><span class="chip">EAN · UPC</span></div>
       <div class="scanner-frame"><div id="camera-reader"></div><div class="scanner-placeholder" id="scanner-placeholder"><span class="scan-glyph">▤</span>Position the product barcode in the camera view to scan.</div></div>
-      <div class="scan-actions"><button class="btn btn-primary" id="start-camera">Start camera</button><button class="btn btn-ghost" id="stop-camera">Stop camera</button></div>
-      <div class="scan-actions"><button class="btn btn-ghost" id="choose-photo">Scan a photo</button><button class="btn btn-ghost" data-action="open-manual">+ Create food</button></div>
-      <input id="photo-input" type="file" accept="image/*" capture="environment" style="display:none" aria-label="Choose barcode photo"/>
+      <div class="scan-actions"><button class="btn btn-primary" id="scan-barcode">▤ Scan Barcode</button><button class="btn btn-ghost" data-action="open-manual">+ Create Food</button></div>
       <div id="scan-status" class="result-note" aria-live="polite">Camera access requires HTTPS and permission. Manual barcode entry is available below.</div></section>
       <section class="card"><div class="section-heading" style="margin-bottom:11px">Enter barcode manually</div><form id="barcode-form"><div class="code-row"><input id="barcode-input" name="barcode" type="text" inputmode="numeric" autocomplete="off" placeholder="e.g. 3017620422003" maxlength="20" aria-label="Barcode" required/><button type="submit" class="btn btn-primary">Look up</button></div></form>
       <div class="result-note">Try barcode <button class="muted-button" data-action="example-barcode">3017620422003</button> to test a real Open Food Facts lookup.</div></section>
@@ -157,13 +177,22 @@
     if(!foods.length) return `<div class="card"><div class="empty"><div class="empty-icon">⊕</div><strong>No foods found</strong><p>Scan your first product or create a food manually.</p><button class="btn btn-primary" data-action="open-manual">Create a food</button></div></div>`;
     return `<div class="food-list">${foods.map(f=>`<div class="food-row" data-action="open-food" data-id="${esc(f.id)}"><div class="food-mini">${f.source==='manual'?'✎':'▤'}</div><div class="food-text"><div class="food-title">${esc(f.name)}</div><div class="food-meta">${esc(f.brand||'')}${f.brand?' · ':''}${pretty(f.n?.kcal,0)} kcal / 100 ${esc(f.unit||'g')} · ${f.source==='manual'?'Manual':'Open Food Facts'}</div></div>${f.source==='manual' ? `<button class="tiny-action danger" data-action="delete-food" data-id="${esc(f.id)}">Delete</button>` : ''}<span class="food-chevron">›</span></div>`).join('')}</div>`;
   }
-  function renderSettings() {
-    return `<div class="eyebrow">PERSONALISED GOALS</div><h1 class="page-title">Your targets.</h1><p class="page-subtitle">Choose daily calorie and macro targets that work for your training.</p>
+
+  function renderTargets() {
+    return `<div class="eyebrow">PERSONALISED GOALS</div><div class="page-heading-actions"><div><h1 class="page-title">Your targets.</h1><p class="page-subtitle">Daily nutrition goals for your training.</p></div><button class="btn btn-ghost btn-sm" data-action="back-today">← Today</button></div>
       <section class="card"><form id="goal-form" class="settings-form"><div class="section-heading">Daily nutrition targets</div><div class="form-grid">
       ${[['kcal','Calories (kcal)'],['protein','Protein (g)'],['carbs','Carbohydrates (g)'],['fat','Fat (g)']].map(([k,l])=>`<label class="field">${l}<input name="${k}" type="number" min="1" max="15000" step="any" value="${esc(state.goals[k])}" required/></label>`).join('')}
-      </div><button type="submit" class="btn btn-primary btn-block">Save targets</button></form><p class="field-help">Targets are independent. Calories are not automatically recalculated from macros.</p></section>
-      <section class="card"><div class="section-heading" style="margin-bottom:8px">Your data</div><p class="page-subtitle" style="margin-bottom:14px">${state.entries.length} diary entries · ${state.foods.length} manual foods · ${state.recent.length} scanned/recent foods</p><div class="action-row"><button class="btn btn-ghost" id="export-data">Export backup</button><button class="btn btn-ghost danger" id="clear-data">Clear saved data</button></div><p class="field-help" style="margin-top:13px">Your data is stored in this browser using local storage. It is not synced to SpartanX or another device. Clearing site data may erase it.</p></section>
-      <section class="card"><div class="section-heading">About this prototype</div><p class="page-subtitle" style="margin:10px 0 0">SpartanX Nutrition Lab is a separate testing app. Barcode records are sourced from Open Food Facts. Not all entries contain vitamins, minerals or complete macronutrients.</p><p class="field-help">Open Food Facts data and images are offered under applicable open licences. Please attribute Open Food Facts if redistributing product data.</p></section>`;
+      </div><button type="submit" class="btn btn-primary btn-block">Save targets</button></form><p class="field-help">Targets are independent. Calories are not automatically recalculated from macros.</p></section>`;
+  }
+  function renderSettings() {
+    const themes=[['red','Spartan Red','Classic red and charcoal'],['gold','Olympian Gold','Gold and charcoal'],['blue','Arctic Blue','Blue and charcoal']];
+    return `<div class="eyebrow">APP PREFERENCES</div><h1 class="page-title">Settings.</h1><p class="page-subtitle">Make Nutrition Lab your own and manage your locally saved data.</p>
+      <section class="card settings-card"><details open><summary><span class="settings-option-icon">◈</span><span class="settings-option-label"><strong>Appearance</strong><small>Choose a theme</small></span><span class="settings-chevron">⌄</span></summary>
+      <div class="settings-detail"><div class="theme-list">${themes.map(([id,name,description])=>`<button class="theme-option ${state.theme===id?'selected':''}" type="button" data-action="set-theme" data-theme="${id}" aria-pressed="${state.theme===id}"><span class="theme-swatch theme-${id}"></span><span><strong>${name}</strong><small>${description}</small></span><span class="theme-check">${state.theme===id?'✓':''}</span></button>`).join('')}</div></div></details></section>
+      <section class="card settings-card"><details><summary><span class="settings-option-icon">ⓘ</span><span class="settings-option-label"><strong>About this prototype</strong><small>App details and data sources</small></span><span class="settings-chevron">⌄</span></summary>
+      <div class="settings-detail"><p class="page-subtitle">SpartanX Nutrition Lab is an independent testing app. Barcode data comes from Open Food Facts, and some products may have missing nutrients or vitamins and minerals.</p><p class="field-help">Always verify food packaging. Open Food Facts data and images are subject to their respective open licences.</p></div></details></section>
+      <section class="card settings-card"><details><summary><span class="settings-option-icon">▤</span><span class="settings-option-label"><strong>Your Data</strong><small>Back up or clear saved diary entries</small></span><span class="settings-chevron">⌄</span></summary>
+      <div class="settings-detail"><p class="page-subtitle">${state.entries.length} diary entries · ${state.foods.length} manual foods · ${state.recent.length} scanned/recent foods</p><div class="action-row"><button class="btn btn-ghost" id="export-data">Export backup</button><button class="btn btn-ghost danger" id="clear-data">Clear saved data</button></div><p class="field-help">Nutrition data is stored in this browser, not synced to SpartanX or other devices. Clearing browser data may erase it.</p></div></details></section>`;
   }
 
   function fromOpenFoodFacts(product, code) {
@@ -243,7 +272,7 @@
       ui.scannerActive=true;
       setScanStatus('Scanner active. Hold a barcode steady in the viewfinder.');
     } catch(e) {
-      setScanStatus(`Camera could not start: ${esc(e.message || e)}. Try Scan a photo or manual barcode entry.`,true);
+      setScanStatus(`Camera could not start: ${esc(e.message || e)}. Please use the manual barcode entry below.`,true);
       await stopCamera();
     }
   }
@@ -258,29 +287,11 @@
     }
     const placeholder=$('#scanner-placeholder');if(placeholder) placeholder.style.display='';
   }
-  async function scanPhoto(file) {
-    if(!file)return;
-    if (typeof Html5Qrcode === 'undefined') {setScanStatus('The barcode library did not load. Please enter the barcode manually.',true);return;}
-    await stopCamera();
-    try {
-      const placeholder=$('#scanner-placeholder'); if(placeholder)placeholder.style.display='none';
-      const scanner=new Html5Qrcode('camera-reader');
-      ui.scanner=scanner;
-      setScanStatus('Scanning image for barcode…');
-      const code=await scanner.scanFile(file,true);
-      try{scanner.clear();}catch{}
-      ui.scanner=null;
-      await lookupBarcode(code);
-    } catch(e) {
-      setScanStatus('No readable barcode found in that photo. Try a closer, sharper image or type the barcode.',true);
-      await stopCamera();
-    }
-  }
-
   function openProduct(food, meal) {
     ui.food=food;
     ui.amount=food.servingAmount||100;
-    if(meal)ui.meal=meal;
+    ui.meal=meal || ui.pendingMeal || (food.unit==='ml' ? 'Liquids' : 'Breakfast');
+    ui.pendingMeal=null;
     $('#product-overlay').classList.remove('hidden');
     document.body.style.overflow='hidden';
     renderProduct();
@@ -326,6 +337,10 @@
     state.entries.push({id:uid(),date:ui.date,meal:ui.meal,amount:ui.amount,unit:ui.food.unit,food:structuredCloneSafe(ui.food),createdAt:Date.now()});
     persist();closeProduct();toast(`Added to ${ui.meal.toLowerCase()} · ${ui.date}`);changeTab('today');
   }
+  function addWater(amount=250) {
+    state.entries.push({id:uid(),date:ui.date,meal:'Liquids',amount,unit:'ml',food:structuredCloneSafe(WATER_FOOD),createdAt:Date.now()});
+    persist();render();toast(`${pretty(amount,0)} ml of water logged.`);
+  }
   function structuredCloneSafe(value) {return JSON.parse(JSON.stringify(value));}
   function openManual(barcode='') {
     const form=$('#manual-form');form.reset();form.elements.barcode.value=barcode||'';
@@ -359,14 +374,19 @@
   }
 
   document.addEventListener('click',async(ev)=>{
-    const tab=ev.target.closest('[data-tab]');if(tab){await changeTab(tab.dataset.tab);return;}
+    const tab=ev.target.closest('[data-tab]');if(tab){if(tab.dataset.tab==='scan')ui.pendingMeal=null;await changeTab(tab.dataset.tab);return;}
     const btn=ev.target.closest('[data-action]');
     if(btn){
       const action=btn.dataset.action;
       if(action==='prev-date'||action==='next-date'){ui.date=datePlus(ui.date,action==='prev-date'?-1:1);render();}
-      else if(action==='go-scan'){await changeTab('scan');}
+      else if(action==='go-scan'){ui.pendingMeal=null;await changeTab('scan');}
+      else if(action==='open-targets'){await changeTab('targets');}
+      else if(action==='back-today'){await changeTab('today');}
+      else if(action==='set-theme'){const theme=btn.dataset.theme;if(THEMES.includes(theme)){state.theme=theme;persist();render();toast('Theme applied.');}}
       else if(action==='open-manual'){openManual();}
-      else if(action==='add-to-meal'){ui.meal=btn.dataset.meal;await changeTab('scan');}
+      else if(action==='add-water'){addWater(250);}
+      else if(action==='custom-water'){openProduct(WATER_FOOD,'Liquids');}
+      else if(action==='add-to-meal'){ui.pendingMeal=btn.dataset.meal;await changeTab('scan');}
       else if(action==='example-barcode'){const el=$('#barcode-input');if(el){el.value='3017620422003';await lookupBarcode(el.value);}}
       else if(action==='manual-unfound'){openManual(ui.manualBarcode);}
       else if(action==='open-food'){
@@ -384,16 +404,14 @@
       return;
     }
     if(ev.target.closest('#header-settings')) {await changeTab('settings');return;}
-    if(ev.target.closest('#start-camera')) {await startCamera();return;}
-    if(ev.target.closest('#stop-camera')) {await stopCamera();setScanStatus('Camera stopped.');return;}
-    if(ev.target.closest('#choose-photo')) {$('#photo-input')?.click();return;}
+    if(ev.target.closest('#scan-barcode')) {await startCamera();return;}
     if(ev.target.closest('#close-product')){closeProduct();return;}
     if(ev.target.closest('#close-manual')||ev.target.closest('#cancel-manual')){closeManual();return;}
     if(ev.target.closest('#confirm-log')){logFood();return;}
     if(ev.target.closest('#export-data')){exportData();return;}
     if(ev.target.closest('#clear-data')){
       if(confirm('Delete all local SpartanX Nutrition data on this device? Export a backup first if you want to keep it.')){
-        state={entries:[],foods:[],recent:[],goals:{...DEFAULT_GOALS}};persist();render();toast('Local nutrition data cleared.');
+        state={entries:[],foods:[],recent:[],goals:{...DEFAULT_GOALS},theme:state.theme};persist();render();toast('Local nutrition data cleared.');
       }return;
     }
   });
@@ -412,9 +430,6 @@
     const target=ev.target;
     if(target.id==='diary-date'){if(/^\d{4}-\d{2}-\d{2}$/.test(target.value)){ui.date=target.value;render();}}
     if(target.id==='meal-select'){ui.meal=target.value;}
-    if(target.id==='photo-input'){
-      if(target.files?.[0]) await scanPhoto(target.files[0]); target.value='';
-    }
   });
   document.addEventListener('input',(ev)=>{
     if(ev.target.id==='portion-input'){ui.amount=Number(ev.target.value);renderPortionPreview();}
