@@ -473,7 +473,7 @@
       else if(action==='back-today'){await changeTab('today');}
       else if(action==='set-theme'){const theme=btn.dataset.theme;if(THEMES.includes(theme)){
         state.theme=theme;persist();document.documentElement.dataset.nutritionTheme=theme;
-        $('#settings-body .theme-option').forEach(option=>{
+        $$('#settings-body .theme-option').forEach(option=>{
           const selected=option.dataset.theme===theme;
           option.classList.toggle('selected',selected);
           option.setAttribute('aria-pressed',String(selected));
