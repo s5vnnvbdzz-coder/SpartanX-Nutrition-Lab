@@ -6,9 +6,9 @@
   <meta name="theme-color" content="#0b0d10" />
   <meta name="description" content="SpartanX Nutrition - a standalone barcode-based nutrition diary prototype." />
   <title>SpartanX | Nutrition Lab</title>
-  <link rel="stylesheet" href="styles.css?v=0.7" />
+  <link rel="stylesheet" href="styles.css?v=0.8" />
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js" integrity="sha512-r6rDA7W6ZeQhvl8S7yRVQUKVHdexq+GAlNkNNqVC7YyIV+NwqCTJe2hDWCiffTyRNOeGEzRRJ9ifvRm/HCzGYg==" crossorigin="anonymous"></script>
-  <script defer src="app.js?v=0.7"></script>
+  <script defer src="app.js?v=0.8"></script>
 </head>
 <body>
   <div class="app-shell">
@@ -18,6 +18,11 @@
         <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h9M18 7h3M3 17h3M12 17h9"/><circle cx="15" cy="7" r="3"/><circle cx="9" cy="17" r="3"/></svg>
       </button>
     </header>
+
+    <div id="pull-refresh-indicator" class="pull-refresh-indicator" role="status" aria-live="polite" aria-hidden="true">
+      <span class="pull-refresh-icon" aria-hidden="true">↓</span>
+      <span class="pull-refresh-label">Pull down to refresh</span>
+    </div>
 
     <main id="main-content" tabindex="-1"></main>
 
