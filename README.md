@@ -78,3 +78,12 @@ This is a prototype for testing, not a validated dietary analysis or a live prod
 - Appearance remains collapsed by default; About this prototype and Your Data stay expanded and do not have disclosure arrows.
 - Close Settings using X, Escape or the backdrop; the current page remains active. Selecting a theme updates the modal in place without collapsing Appearance or resetting the scroll position.
 - The previous dedicated Settings route and Back button are no longer used. The original local nutrition data and unrelated projects are unchanged.
+
+## Nutrition Lab v0.7 — Barcode camera and meal logging
+
+- **Scan Barcode** opens an immersive in-app rear-camera preview on HTTPS. EAN-13/EAN-8/UPC-A/UPC-E barcodes are decoded continuously by html5-qrcode and the first valid barcode is looked up automatically. No separate shutter press or saved photograph is needed; iOS websites do not embed the native Camera app.
+- The Home "Scan barcode" shortcut opens the camera immediately; the Scan tab also has a scan button. Camera closes on detection, cancel, dismissal or when the app is backgrounded. Manual barcode entry remains as fallback.
+- Found products open a details sheet with serving editor first (before the longer nutrition breakdown). Both liquids and foods have minus/plus controls, a numeric amount, a unit selector, and meal selector (Breakfast, Lunch, Dinner, Snacks, Liquids). Buttons offer **Cancel / Discard** and **Log**.
+- Food measurements: g, kg, oz, lb and serving. Liquid measurements: ml, cl, L, UK and US fl oz, metric cup, UK pint, tablespoon, teaspoon and serving. Values are converted to g or ml internally for correct nutrient calculations; selected units are retained as display metadata.
+- Products with volume in their serving or package quantity, or beverage categories, default to liquid entry and the Liquids meal. Water logging and historic entries continue to work, and existing saved data is preserved.
+- Actual rear-camera scanning requires a physical device and camera permission. Scanner and logging logic has passed simulated tests; iPhone camera hardware has not been tested remotely.
