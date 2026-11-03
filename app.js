@@ -90,7 +90,7 @@
   }
   function render() {
     document.body.classList.toggle('targets-screen', ui.tab === 'targets');
-    $('.nav-item').forEach(n => {n.classList.toggle('active', n.dataset.tab === ui.tab);n.setAttribute('aria-current', n.dataset.tab === ui.tab ? 'page' : 'false');});
+    $$('.nav-item').forEach(n => {n.classList.toggle('active', n.dataset.tab === ui.tab);n.setAttribute('aria-current', n.dataset.tab === ui.tab ? 'page' : 'false');});
     document.documentElement.dataset.nutritionTheme=state.theme||'red';
     const main = $('#main-content');
     main.innerHTML = ui.tab === 'today' ? renderToday() : ui.tab === 'scan' ? renderScan() : ui.tab === 'foods' ? renderFoods() : ui.tab === 'targets' ? renderTargets() : renderToday();
