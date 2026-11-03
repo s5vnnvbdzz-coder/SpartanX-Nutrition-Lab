@@ -25,7 +25,7 @@
   const $ = (query) => document.querySelector(query);
   const $$ = (query) => [...document.querySelectorAll(query)];
   const today = () => localDate(new Date());
-  const ui = { tab: 'today', date: today(), food: null, amount: 100, meal: 'Breakfast', scanBusy: false, scanner: null, scannerActive: false, manualBarcode: '', toastTimer: null, pendingMeal: null, waterAmount: 250, autoBalance: true, settingsReturnTab: 'today' };
+  const ui = { tab: 'today', date: today(), food: null, amount: 100, meal: 'Breakfast', scanBusy: false, scanner: null, scannerActive: false, manualBarcode: '', toastTimer: null, pendingMeal: null, waterAmount: 250, autoBalance: true };
   let state = loadState();
 
   function localDate(date) {
@@ -91,13 +91,8 @@
   function render() {
     $$('.nav-item').forEach(n => {n.classList.toggle('active', n.dataset.tab === ui.tab);n.setAttribute('aria-current', n.dataset.tab === ui.tab ? 'page' : 'false');});
     document.documentElement.dataset.nutritionTheme=state.theme||'red';
-    const isSettings = ui.tab === 'settings';
-    const bottomNav = $('.bottom-nav');
-    if(bottomNav) bottomNav.hidden = isSettings;
-    const shell = $('.app-shell');
-    if(shell) shell.classList.toggle('settings-mode', isSettings);
     const main = $('#main-content');
-    main.innerHTML = ui.tab === 'today' ? renderToday() : ui.tab === 'scan' ? renderScan() : ui.tab === 'foods' ? renderFoods() : ui.tab === 'targets' ? renderTargets() : renderSettings();
+    main.innerHTML = ui.tab === 'today' ? renderToday() : ui.tab === 'scan' ? renderScan() : ui.tab === 'foods' ? renderFoods() : ui.tab === 'targets' ? renderTargets() : renderToday();
   }
 
   function macroRow(name, key, colourClass, total) {
@@ -246,10 +241,7 @@
   }
   function renderSettings() {
     const themes=[['red','Spartan Red','Classic red and charcoal'],['gold','Olympian Gold','Gold and charcoal'],['blue','Arctic Blue','Blue and charcoal']];
-    return `<div class="settings-page-header">
-      <button class="btn btn-ghost btn-sm settings-back" type="button" data-action="back-settings" aria-label="Back to previous page"><span aria-hidden="true">←</span> Back</button>
-      <span class="eyebrow">APP PREFERENCES</span></div>
-      <h1 class="page-title">Settings.</h1><p class="page-subtitle">Make Nutrition Lab your own and manage your locally saved data.</p>
+    return `<h1 class="page-title">Settings.</h1><p class="page-subtitle">Make Nutrition Lab your own and manage your locally saved data.</p>
       <section class="card settings-card">
         <div class="settings-static-header"><span class="settings-option-icon" aria-hidden="true">ⓘ</span><span class="settings-option-label"><strong>About this prototype</strong><small>App details and data sources</small></span></div>
         <div class="settings-detail"><p class="page-subtitle">SpartanX Nutrition Lab is an independent testing app. Barcode data comes from Open Food Facts, and some products may have missing nutrients or vitamins and minerals.</p><p class="field-help">Always verify food packaging. Open Food Facts data and images are subject to their respective open licences.</p></div>
@@ -440,8 +432,37 @@
     if (ui.tab === 'scan' && tab !== 'scan') await stopCamera();
     ui.tab=tab;render();window.scrollTo({top:0,behavior:'instant'});
   }
+  function refreshSettingsModal({reset=false}={}) {
+    const body=$('#settings-body');
+    if(!body)return;
+    const scroll=$('#settings-scroll');
+    const position=reset?0:(scroll?.scrollTop||0);
+    const appearanceOpen=!reset && !!$('#appearance-details')?.open;
+    body.innerHTML=renderSettings();
+    if(appearanceOpen){const details=$('#appearance-details');if(details)details.open=true;}
+    if(scroll)scroll.scrollTop=position;
+  }
+  async function openSettingsModal() {
+    const modal=$('#settings-overlay');
+    if(!modal || !modal.classList.contains('hidden'))return;
+    if(ui.scannerActive) await stopCamera();
+    refreshSettingsModal({reset:true});
+    modal.classList.remove('hidden');
+    const shell=$('.app-shell');if(shell)shell.inert=true;
+    document.body.style.overflow='hidden';
+    $('#close-settings')?.focus();
+  }
+  function closeSettingsModal() {
+    const modal=$('#settings-overlay');
+    if(!modal || modal.classList.contains('hidden'))return;
+    modal.classList.add('hidden');
+    const shell=$('.app-shell');if(shell)shell.inert=false;
+    document.body.style.overflow='';
+    $('#header-settings')?.focus();
+  }
 
   document.addEventListener('click',async(ev)=>{
+    if(ev.target.id==='settings-overlay'){closeSettingsModal();return;}
     const tab=ev.target.closest('[data-tab]');if(tab){if(tab.dataset.tab==='scan')ui.pendingMeal=null;await changeTab(tab.dataset.tab);return;}
     const btn=ev.target.closest('[data-action]');
     if(btn){
@@ -450,8 +471,17 @@
       else if(action==='go-scan'){ui.pendingMeal=null;await changeTab('scan');}
       else if(action==='open-targets'){await changeTab('targets');}
       else if(action==='back-today'){await changeTab('today');}
-      else if(action==='back-settings'){await changeTab(['today','scan','foods','targets'].includes(ui.settingsReturnTab) ? ui.settingsReturnTab : 'today');}
-      else if(action==='set-theme'){const theme=btn.dataset.theme;if(THEMES.includes(theme)){const wasOpen=$('#appearance-details')?.open;state.theme=theme;persist();render();const details=$('#appearance-details');if(details && wasOpen)details.open=true;toast('Theme applied.');}}
+      else if(action==='set-theme'){const theme=btn.dataset.theme;if(THEMES.includes(theme)){
+        state.theme=theme;persist();document.documentElement.dataset.nutritionTheme=theme;
+        $('#settings-body .theme-option').forEach(option=>{
+          const selected=option.dataset.theme===theme;
+          option.classList.toggle('selected',selected);
+          option.setAttribute('aria-pressed',String(selected));
+          const indicator=option.querySelector('.theme-check');
+          if(indicator)indicator.textContent=selected?'✓':'';
+        });
+        toast('Theme applied.');
+      }}
       else if(action==='open-manual'){openManual();}
       else if(action==='balance-macros'){const form=$('#goal-form');if(form){balanceTargetInputs(form,'carbs');const preview=$('#macro-budget-preview');if(preview)preview.innerHTML=macroBudgetMarkup(readTargetForm(form));toast('Remaining calories balanced.');}}
       else if(action==='water-down'){ui.waterAmount=Math.max(10,ui.waterAmount-10);render();}
@@ -475,7 +505,8 @@
       }
       return;
     }
-    if(ev.target.closest('#header-settings')) {if(ui.tab!=='settings'){ui.settingsReturnTab=ui.tab;await changeTab('settings');}return;}
+    if(ev.target.closest('#header-settings')) {await openSettingsModal();return;}
+    if(ev.target.closest('#close-settings')) {closeSettingsModal();return;}
     if(ev.target.closest('#scan-barcode')) {await startCamera();return;}
     if(ev.target.closest('#close-product')){closeProduct();return;}
     if(ev.target.closest('#close-manual')||ev.target.closest('#cancel-manual')){closeManual();return;}
@@ -483,7 +514,7 @@
     if(ev.target.closest('#export-data')){exportData();return;}
     if(ev.target.closest('#clear-data')){
       if(confirm('Delete all local SpartanX Nutrition data on this device? Export a backup first if you want to keep it.')){
-        state={entries:[],foods:[],recent:[],goals:{...DEFAULT_GOALS},theme:state.theme};persist();render();toast('Local nutrition data cleared.');
+        state={entries:[],foods:[],recent:[],goals:{...DEFAULT_GOALS},theme:state.theme};persist();render();refreshSettingsModal();toast('Local nutrition data cleared.');
       }return;
     }
   });
@@ -513,6 +544,20 @@
     }
   });
   document.addEventListener('keydown',ev=>{
+    const settings=$('#settings-overlay');
+    if(settings && !settings.classList.contains('hidden')){
+      if(ev.key==='Escape'){ev.preventDefault();closeSettingsModal();return;}
+      if(ev.key==='Tab'){
+        const focusables=[...settings.querySelectorAll('button:not([disabled]), input:not([disabled]), select:not([disabled]), summary, [tabindex="0"]')]
+          .filter(el=>el.getClientRects().length>0);
+        const first=focusables[0],last=focusables[focusables.length-1];
+        if(first && last){
+          if(ev.shiftKey && document.activeElement===first){ev.preventDefault();last.focus();}
+          else if(!ev.shiftKey && document.activeElement===last){ev.preventDefault();first.focus();}
+        }
+      }
+      return;
+    }
     if(ev.key==='Escape'){if(!$('#product-overlay').classList.contains('hidden'))closeProduct();else if(!$('#manual-overlay').classList.contains('hidden'))closeManual();}
   });
   document.addEventListener('visibilitychange',()=>{if(document.hidden&&ui.scannerActive)stopCamera();});
