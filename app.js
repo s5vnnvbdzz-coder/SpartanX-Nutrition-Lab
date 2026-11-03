@@ -89,7 +89,8 @@
     ui.toastTimer = setTimeout(() => node.classList.remove('visible'), 3400);
   }
   function render() {
-    $$('.nav-item').forEach(n => {n.classList.toggle('active', n.dataset.tab === ui.tab);n.setAttribute('aria-current', n.dataset.tab === ui.tab ? 'page' : 'false');});
+    document.body.classList.toggle('targets-screen', ui.tab === 'targets');
+    $('.nav-item').forEach(n => {n.classList.toggle('active', n.dataset.tab === ui.tab);n.setAttribute('aria-current', n.dataset.tab === ui.tab ? 'page' : 'false');});
     document.documentElement.dataset.nutritionTheme=state.theme||'red';
     const main = $('#main-content');
     main.innerHTML = ui.tab === 'today' ? renderToday() : ui.tab === 'scan' ? renderScan() : ui.tab === 'foods' ? renderFoods() : ui.tab === 'targets' ? renderTargets() : renderToday();
@@ -526,7 +527,7 @@
       for(const k of ['kcal','protein','carbs','fat']){
         const v=Number(form.elements[k].value);if(!Number.isFinite(v)||v<0||v>15000||(k==='kcal'&&v===0)){toast('Enter a positive calorie goal and non-negative macro values below 15,000.');return;}next[k]=v;
       }
-      state.goals=next;persist();render();toast('Daily targets saved.');
+      state.goals=next;persist();ui.tab='today';render();window.scrollTo({top:0,behavior:'instant'});toast('Daily targets saved.');
     }
   });
   document.addEventListener('change',async(ev)=>{
