@@ -87,3 +87,11 @@ This is a prototype for testing, not a validated dietary analysis or a live prod
 - Food measurements: g, kg, oz, lb and serving. Liquid measurements: ml, cl, L, UK and US fl oz, metric cup, UK pint, tablespoon, teaspoon and serving. Values are converted to g or ml internally for correct nutrient calculations; selected units are retained as display metadata.
 - Products with volume in their serving or package quantity, or beverage categories, default to liquid entry and the Liquids meal. Water logging and historic entries continue to work, and existing saved data is preserved.
 - Actual rear-camera scanning requires a physical device and camera permission. Scanner and logging logic has passed simulated tests; iPhone camera hardware has not been tested remotely.
+
+## Nutrition Lab v0.8 — Pull to refresh on iPhone
+
+- At the top of a normal app page, pull downward to reveal **Pull down to refresh**. Continue until **Release to refresh** appears; then let go to reload.
+- Small drags, horizontal gestures and normal scrolling do not refresh. The gesture is disabled while editing Targets, operating the camera, or using Settings/product/manual-entry dialogs.
+- Refreshing loads the current page with a cache-busting `_refresh` query parameter. The existing browser localStorage key, logged foods, diary entries, themes and targets are not reset or cleared.
+- The gesture is implemented in the Home Screen web app itself, because not every installed iPhone web app exposes Safari's native pull-to-refresh.
+- **One-time installation note:** An already-open v0.7 app cannot run the new gesture until v0.8 has first been loaded. If necessary, open the live URL in Safari and reload it once, then reopen the Home Screen app. Do not clear website data.
