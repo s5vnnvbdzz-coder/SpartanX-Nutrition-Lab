@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0d10" />
+  <meta name="description" content="SpartanX Nutrition - a standalone barcode-based nutrition diary prototype." />
+  <title>SpartanX | Nutrition Lab</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js" integrity="sha512-r6rDA7W6ZeQhvl8S7yRVQUKVHdexq+GAlNkNNqVC7YyIV+NwqCTJe2hDWCiffTyRNOeGEzRRJ9ifvRm/HCzGYg==" crossorigin="anonymous"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="topbar-brand"><span class="brand-mark">X</span><div><div class="brand">SPARTAN<span>X</span></div><div class="brand-subtitle">NUTRITION LAB <span class="beta-pill">BETA</span></div></div></div>
+      <button class="icon-button" id="header-settings" aria-label="Settings" title="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.89l.06.06-2 2-.06-.06A1.7 1.7 0 0 0 15.85 18a1.7 1.7 0 0 0-1.05 1.57V20h-2.8v-.43A1.7 1.7 0 0 0 10.95 18a1.7 1.7 0 0 0-1.88.34L9 18.4l-2-2 .06-.06A1.7 1.7 0 0 0 7.4 14.5 1.7 1.7 0 0 0 5.83 13.4H5.4v-2.8h.43A1.7 1.7 0 0 0 7.4 9.55a1.7 1.7 0 0 0-.34-1.88L7 7.6l2-2 .06.06A1.7 1.7 0 0 0 10.95 6a1.7 1.7 0 0 0 1.05-1.57V4h2.8v.43A1.7 1.7 0 0 0 15.85 6a1.7 1.7 0 0 0 1.88-.34l.07-.06 2 2-.06.06A1.7 1.7 0 0 0 19.4 9.55 1.7 1.7 0 0 0 20.97 10.6h.43v2.8h-.43A1.7 1.7 0 0 0 19.4 15Z"/></svg>
+      </button>
+    </header>
+
+    <main id="main-content" tabindex="-1"></main>
+
+    <nav class="bottom-nav" aria-label="Main navigation">
+      <button data-tab="today" class="nav-item active"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M7 2v4M17 2v4M3 9h18M8 13h3M8 17h7"/></svg><span>Today</span></button>
+      <button data-tab="scan" class="nav-item"><svg viewBox="0 0 24 24"><path d="M4 9V5a1 1 0 0 1 1-1h4m6 0h4a1 1 0 0 1 1 1v4M4 15v4a1 1 0 0 0 1 1h4m6 0h4a1 1 0 0 0 1-1v-4M4 12h16M7 10v4M10 9v6M13 10v4M16 9v6"/></svg><span>Scan</span></button>
+      <button data-tab="foods" class="nav-item"><svg viewBox="0 0 24 24"><path d="M4 5h16v15H4zM4 9h16M8 13h8M8 17h6"/></svg><span>My Foods</span></button>
+      <button data-tab="settings" class="nav-item"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16M8 5v4M16 10v4M11 15v4"/></svg><span>Targets</span></button>
+    </nav>
+  </div>
+
+  <div id="product-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="product-title">
+    <div class="sheet full-sheet">
+      <div class="sheet-top"><span class="eyebrow">FOOD DETAILS</span><button class="icon-button" id="close-product" aria-label="Close product details">×</button></div>
+      <div id="product-body"></div>
+    </div>
+  </div>
+
+  <div id="manual-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="manual-title">
+    <div class="sheet form-sheet">
+      <div class="sheet-top"><span class="eyebrow" id="manual-title">CREATE A FOOD</span><button class="icon-button" id="close-manual" aria-label="Close manual food form">×</button></div>
+      <form id="manual-form">
+        <div class="form-grid">
+          <label class="field span-2">Product / food name <input name="name" required maxlength="90" placeholder="e.g. Homemade chicken wrap" /></label>
+          <label class="field">Brand (optional) <input name="brand" maxlength="60" placeholder="Homemade" /></label>
+          <label class="field">Barcode (optional) <input name="barcode" inputmode="numeric" maxlength="24" placeholder="Barcode number" /></label>
+          <div class="section-heading span-2">Nutritional values per 100 g / ml</div>
+          <label class="field">Calories (kcal) <input name="kcal" type="number" min="0" max="10000" step="any" required placeholder="0" /></label>
+          <label class="field">Energy (kJ) <input name="kj" type="number" min="0" max="50000" step="any" placeholder="Optional" /></label>
+          <label class="field">Protein (g) <input name="protein" type="number" min="0" max="1000" step="any" required placeholder="0" /></label>
+          <label class="field">Carbohydrates (g) <input name="carbs" type="number" min="0" max="1000" step="any" required placeholder="0" /></label>
+          <label class="field">Fat (g) <input name="fat" type="number" min="0" max="1000" step="any" required placeholder="0" /></label>
+          <label class="field">Sugars (g) <input name="sugar" type="number" min="0" step="any" placeholder="Optional" /></label>
+          <label class="field">Saturated fat (g) <input name="satFat" type="number" min="0" step="any" placeholder="Optional" /></label>
+          <label class="field">Fibre (g) <input name="fibre" type="number" min="0" step="any" placeholder="Optional" /></label>
+          <label class="field">Salt (g) <input name="salt" type="number" min="0" step="any" placeholder="Optional" /></label>
+          <label class="field">Calcium (mg) <input name="calcium" type="number" min="0" step="any" placeholder="Optional" /></label>
+          <label class="field">Iron (mg) <input name="iron" type="number" min="0" step="any" placeholder="Optional" /></label>
+          <label class="field">Vitamin C (mg) <input name="vitaminC" type="number" min="0" step="any" placeholder="Optional" /></label>
+          <label class="field">Vitamin B12 (µg) <input name="vitaminB12" type="number" min="0" step="any" placeholder="Optional" /></label>
+          <label class="field">Default unit <select name="unit"><option value="g">grams (g)</option><option value="ml">millilitres (ml)</option></select></label>
+        </div>
+        <div class="form-actions"><button type="button" class="btn btn-ghost" id="cancel-manual">Cancel</button><button type="submit" class="btn btn-primary">Save food</button></div>
+      </form>
+    </div>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
