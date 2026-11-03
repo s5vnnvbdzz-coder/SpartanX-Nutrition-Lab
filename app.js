@@ -25,7 +25,7 @@
   const $ = (query) => document.querySelector(query);
   const $$ = (query) => [...document.querySelectorAll(query)];
   const today = () => localDate(new Date());
-  const ui = { tab: 'today', date: today(), food: null, amount: 100, meal: 'Breakfast', scanBusy: false, scanner: null, scannerActive: false, manualBarcode: '', toastTimer: null, pendingMeal: null };
+  const ui = { tab: 'today', date: today(), food: null, amount: 100, meal: 'Breakfast', scanBusy: false, scanner: null, scannerActive: false, manualBarcode: '', toastTimer: null, pendingMeal: null, waterAmount: 250, autoBalance: true };
   let state = loadState();
 
   function localDate(date) {
@@ -135,7 +135,7 @@
     const water=matching.filter(e=>e.food?.id==='system:water' && e.unit==='ml').reduce((v,e)=>v+Number(e.amount||0),0);
     const other=matching.filter(e=>e.food?.id!=='system:water' && e.unit==='ml').reduce((v,e)=>v+Number(e.amount||0),0);
     return `<section class="card meal-card liquid-card"><div class="meal-top"><div><div class="meal-heading">Liquids</div><div class="liquid-summary">Water ${pretty(water,0)} ml · Other drinks ${pretty(other,0)} ml</div></div><span class="meal-total">${pretty(kcal,0)} kcal</span></div>
-      <div class="liquid-actions"><button class="btn btn-soft" data-action="add-water">+ 250 ml Water</button><button class="btn btn-ghost" data-action="add-to-meal" data-meal="Liquids">+ Add Drink</button></div>
+      <div class="liquid-actions"><div class="water-stepper" role="group" aria-label="Water amount"><button type="button" class="water-step-button" data-action="water-down" aria-label="Decrease water amount by 10 millilitres" ${ui.waterAmount<=10 ? 'disabled' : ''}>−</button><button type="button" class="btn btn-soft water-log-button" data-action="add-water">+ ${ui.waterAmount} ml Water</button><button type="button" class="water-step-button" data-action="water-up" aria-label="Increase water amount by 10 millilitres" ${ui.waterAmount>=5000 ? 'disabled' : ''}>+</button></div><button class="btn btn-ghost drink-add-button" data-action="add-to-meal" data-meal="Liquids">+ Add Drink</button></div>
       <button class="muted-button liquid-custom" data-action="custom-water">Log a different water amount</button>
       ${matching.length ? matching.map(e => {
         const s=stats(e.food,e.amount),photo=safeImage(e.food.image);
@@ -384,7 +384,9 @@
       else if(action==='back-today'){await changeTab('today');}
       else if(action==='set-theme'){const theme=btn.dataset.theme;if(THEMES.includes(theme)){state.theme=theme;persist();render();toast('Theme applied.');}}
       else if(action==='open-manual'){openManual();}
-      else if(action==='add-water'){addWater(250);}
+      else if(action==='water-down'){ui.waterAmount=Math.max(10,ui.waterAmount-10);render();}
+      else if(action==='water-up'){ui.waterAmount=Math.min(5000,ui.waterAmount+10);render();}
+      else if(action==='add-water'){addWater(ui.waterAmount);}
       else if(action==='custom-water'){openProduct(WATER_FOOD,'Liquids');}
       else if(action==='add-to-meal'){ui.pendingMeal=btn.dataset.meal;await changeTab('scan');}
       else if(action==='example-barcode'){const el=$('#barcode-input');if(el){el.value='3017620422003';await lookupBarcode(el.value);}}
