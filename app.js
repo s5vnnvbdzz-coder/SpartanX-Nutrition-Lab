@@ -25,7 +25,7 @@
   const $ = (query) => document.querySelector(query);
   const $$ = (query) => [...document.querySelectorAll(query)];
   const today = () => localDate(new Date());
-  const ui = { tab: 'today', date: today(), food: null, amount: 100, meal: 'Breakfast', scanBusy: false, scanner: null, scannerActive: false, manualBarcode: '', toastTimer: null, pendingMeal: null, waterAmount: 250, autoBalance: true };
+  const ui = { tab: 'today', date: today(), food: null, amount: 100, meal: 'Breakfast', scanBusy: false, scanner: null, scannerActive: false, manualBarcode: '', toastTimer: null, pendingMeal: null, waterAmount: 250, autoBalance: true, scannerStarting: null, scanRequested:false, scanDetected:false, portionUnit:'g', portionQuantity:100 };
   let state = loadState();
 
   function localDate(date) {
@@ -146,15 +146,17 @@
   }
 
   function renderScan() {
-    return `<div class="eyebrow">BARCODE LOOKUP</div><h1 class="page-title">Scan. Check. Log.</h1><p class="page-subtitle">Find nutrition facts with Open Food Facts, then log exactly how much you consumed.</p>
-      <section class="scan-panel"><div class="card-header" style="margin-bottom:13px"><span class="section-heading">Camera scanner</span><span class="chip">EAN · UPC</span></div>
-      <div class="scanner-frame"><div id="camera-reader"></div><div class="scanner-placeholder" id="scanner-placeholder"><span class="scan-glyph">▤</span>Position the product barcode in the camera view to scan.</div></div>
-      <div class="scan-actions"><button class="btn btn-primary" id="scan-barcode">▤ Scan Barcode</button><button class="btn btn-ghost" data-action="open-manual">+ Create Food</button></div>
-      <div id="scan-status" class="result-note" aria-live="polite">Camera access requires HTTPS and permission. Manual barcode entry is available below.</div></section>
+    return `<div class="eyebrow">BARCODE LOOKUP</div><h1 class="page-title">Scan. Check. Log.</h1>
+      <p class="page-subtitle">Use the rear camera to detect a barcode automatically, then choose the exact amount and meal before logging.</p>
+      <section class="scan-panel"><div class="card-header" style="margin-bottom:13px"><span class="section-heading">Scan a product</span><span class="chip">EAN · UPC</span></div>
+        <div class="scan-hero"><span class="scan-glyph" aria-hidden="true">▤</span><strong>Point. Detect. Log.</strong><span>Camera preview opens within Nutrition Lab. The barcode is captured automatically once recognised.</span></div>
+        <div class="scan-actions"><button class="btn btn-primary" id="scan-barcode">▤ Scan Barcode</button><button class="btn btn-ghost" data-action="open-manual">+ Create Food</button></div>
+        <div id="scan-page-status" class="result-note" aria-live="polite">Allow rear-camera access when prompted. No manual photo capture is required.</div>
+      </section>
       <section class="card"><div class="section-heading" style="margin-bottom:11px">Enter barcode manually</div><form id="barcode-form"><div class="code-row"><input id="barcode-input" name="barcode" type="text" inputmode="numeric" autocomplete="off" placeholder="e.g. 3017620422003" maxlength="20" aria-label="Barcode" required/><button type="submit" class="btn btn-primary">Look up</button></div></form>
-      <div class="result-note">Try barcode <button class="muted-button" data-action="example-barcode">3017620422003</button> to test a real Open Food Facts lookup.</div></section>
-      <div class="info"><div class="info-icon">ⓘ</div><div><strong>Product information may be incomplete.</strong> Data is contributed by the Open Food Facts community. Always check the packaging when accuracy matters, especially for allergens and nutrition labels.</div></div>
-      <p class="footnote">Food data: <a href="https://world.openfoodfacts.org/" target="_blank" rel="noopener noreferrer" style="color:#ff8b9b">Open Food Facts</a> (ODbL). Barcode lookup requires an internet connection.</p>`;
+      <div class="result-note">Try barcode <button class="muted-button" data-action="example-barcode">3017620422003</button> for a test product.</div></section>
+      <div class="info"><div class="info-icon">ⓘ</div><div><strong>Product information may be incomplete.</strong> Data comes from the Open Food Facts community. Verify packaging, especially nutrition information and allergens.</div></div>
+      <p class="footnote">Food data: <a href="https://world.openfoodfacts.org/" target="_blank" rel="noopener noreferrer" style="color:#ff8b9b">Open Food Facts</a> (ODbL). Internet is required.</p>`;
   }
 
   function getLibrary() {
@@ -263,10 +265,21 @@
     let kj = val('energy-kj_100g','energy_100g');
     if(kcal === null && kj !== null) kcal = kj/4.184;
     if(kj === null && kcal !== null) kj = kcal*4.184;
-    const servingText = String(product.serving_size||'');
-    const match = servingText.match(/(\d+(?:[.,]\d+)?)\s*(ml|g)\b/i);
-    const servingAmount = match ? Number(match[1].replace(',','.')) : 100;
-    const unit = match?.[2]?.toLowerCase() === 'ml' ? 'ml' : 'g';
+    const servingText=String(product.serving_size||'');
+    const quantityText=String(product.quantity||'');
+    const categories=Array.isArray(product.categories_tags)?product.categories_tags.join(' '):String(product.categories||'');
+    const volumePattern=/(?:\d[\d.,]*\s*)(?:ml|cl|litres?|liters?|l|fl\.?\s*oz)\b/i;
+    const isLiquid=volumePattern.test(servingText) || volumePattern.test(quantityText)
+      || /(?:en:beverages|en:waters|en:energy-drinks|en:soft-drinks|en:juices|en:drinks)/i.test(categories);
+    const servingMatch=servingText.match(/(\d+(?:[.,]\d+)?)\s*(ml|cl|l|g|kg)\b/i);
+    const quantityMatch=quantityText.match(/(\d+(?:[.,]\d+)?)\s*(ml|cl|l|g|kg)\b/i);
+    const picked=servingMatch||quantityMatch;
+    const rawAmount=picked?Number(picked[1].replace(',','.')):NaN;
+    const rawUnit=picked?.[2]?.toLowerCase();
+    const factor=rawUnit==='kg'||rawUnit==='l'?1000:rawUnit==='cl'?10:1;
+    const unit=isLiquid?'ml':'g';
+    const servingAmount=Number.isFinite(rawAmount)&&rawAmount>0&&(isLiquid===['ml','cl','l'].includes(rawUnit))
+      ?rawAmount*factor:(isLiquid?250:100);
     const micros = {};
     for(const [key] of MICRO_MAP) { const v = val(`${key}_100g`); if(v !== null) micros[key]=v; }
     return {
@@ -279,7 +292,33 @@
     };
   }
   function setScanStatus(message, error=false) {
-    const status=$('#scan-status'); if(status) {status.innerHTML=message;status.classList.toggle('error',error);}
+    for(const selector of ['#scan-status','#scan-page-status']) {
+      const status=$(selector);
+      if(status){status.innerHTML=message;status.classList.toggle('error',error);}
+    }
+  }
+  function scannerIsOpen(){return !!$('#scanner-overlay') && !$('#scanner-overlay').classList.contains('hidden');}
+  function openScannerModal(){
+    const overlay=$('#scanner-overlay');
+    if(!overlay)return;
+    overlay.classList.remove('hidden');
+    const shell=$('.app-shell');if(shell)shell.inert=true;
+    document.body.style.overflow='hidden';
+    ui.scanRequested=true;ui.scanDetected=false;
+  }
+  function closeScannerModal(){
+    const overlay=$('#scanner-overlay');
+    if(!overlay || overlay.classList.contains('hidden'))return;
+    overlay.classList.add('hidden');
+    const shell=$('.app-shell');if(shell)shell.inert=false;
+    if($('#product-overlay')?.classList.contains('hidden')!==false)document.body.style.overflow='';
+    ui.scanRequested=false;ui.scanDetected=false;
+    $('#scan-barcode')?.focus();
+  }
+  async function cancelScan(){
+    ui.scanRequested=false;
+    await stopCamera();
+    closeScannerModal();
   }
   async function lookupBarcode(raw) {
     if(ui.scanBusy) return;
@@ -289,7 +328,7 @@
     setScanStatus('<span class="loading-spinner"></span> Looking up product in Open Food Facts…');
     await stopCamera();
     try {
-      const fields='code,product_name,product_name_en,generic_name,brands,image_front_small_url,image_url,nutriments,serving_size,quantity';
+      const fields='code,product_name,product_name_en,generic_name,brands,image_front_small_url,image_url,nutriments,serving_size,quantity,categories_tags,categories';
       const url=`https://world.openfoodfacts.org/api/v3/product/${encodeURIComponent(code)}?fields=${encodeURIComponent(fields)}`;
       const res=await fetch(url,{headers:{Accept:'application/json'},cache:'no-store'});
       if(res.status===404) {notFound(code);return;}
@@ -301,52 +340,69 @@
       if(!food.name) {notFound(code);return;}
       addRecent(food);
       setScanStatus(`Found: ${esc(food.name)}`);
+      if(scannerIsOpen())closeScannerModal();
       openProduct(food);
     } catch(err) {
       const reason = err && err.message ? err.message : 'Unknown error';
-      setScanStatus(`Lookup failed: ${esc(reason)}. Check your connection and try again.`,true);
+      setScanStatus(`Lookup failed: ${esc(reason)}. <button class="muted-button" data-action="rescan-barcode">Scan again</button> or enter the barcode manually.`,true);
       toast('Could not reach Open Food Facts.');
     } finally {ui.scanBusy=false;}
   }
   function notFound(code) {
     ui.manualBarcode=code;
-    setScanStatus(`Barcode ${esc(code)} was not found. <button class="muted-button" data-action="manual-unfound">Add this product manually</button>.`,true);
+    setScanStatus(`Barcode ${esc(code)} was not found. <button class="muted-button" data-action="manual-unfound">Create this product manually</button> or scan again.`,true);
   }
   function addRecent(food) {
     state.recent=[food,...state.recent.filter(f=>f.id!==food.id)].slice(0,35);
     persist();
   }
-  async function startCamera() {
-    if (ui.scannerActive || ui.scanBusy) return;
-    if (!window.isSecureContext) {setScanStatus('The camera needs HTTPS. Publish the app using GitHub Pages, or use the barcode field below.',true);return;}
-    if (!navigator.mediaDevices?.getUserMedia) {setScanStatus('This browser does not expose camera access. Enter the barcode manually.',true);return;}
-    if (typeof Html5Qrcode === 'undefined') {setScanStatus('Camera scanner library did not load. Check your connection or use manual barcode entry.',true);return;}
-    try {
+  async function startCamera(){
+    if(ui.scannerActive||ui.scannerStarting||ui.scanBusy)return;
+    openScannerModal();
+    setScanStatus('Opening rear camera…');
+    if(!window.isSecureContext){setScanStatus('Camera needs a secure HTTPS connection. You can enter the barcode below.',true);return;}
+    if(!navigator.mediaDevices?.getUserMedia){setScanStatus('Camera access is unavailable. Use manual barcode entry instead.',true);return;}
+    if(typeof Html5Qrcode==='undefined'){setScanStatus('Scanner library did not load. Check your connection or use manual barcode entry.',true);return;}
+    const placeholder=$('#scanner-placeholder');
+    try{
       const formats=window.Html5QrcodeSupportedFormats;
-      ui.scanner = new Html5Qrcode('camera-reader',{formatsToSupport:formats?[formats.EAN_13,formats.EAN_8,formats.UPC_A,formats.UPC_E]:undefined,verbose:false});
-      const placeholder=$('#scanner-placeholder');if(placeholder)placeholder.style.display='none';
-      setScanStatus('Requesting camera permission…');
-      await ui.scanner.start({facingMode:'environment'}, {fps:10,qrbox:(w,h)=>({width:Math.min(285,Math.max(100,w-28)),height:Math.min(130,Math.max(75,h-26))})}, async(code) => {
-        if(ui.scanBusy) return;
-        await lookupBarcode(code);
-      }, () => {});
+      const scanner=new Html5Qrcode('camera-reader',{
+        formatsToSupport:formats?[formats.EAN_13,formats.EAN_8,formats.UPC_A,formats.UPC_E]:undefined,verbose:false
+      });
+      ui.scanner=scanner;
+      if(placeholder)placeholder.style.display='none';
+      const starting=scanner.start({facingMode:'environment'},{fps:12,qrbox:(w,h)=>({
+        width:Math.min(340,Math.max(160,w-36)),
+        height:Math.min(160,Math.max(90,h-40))
+      })},(code)=>{
+        if(!ui.scanRequested||ui.scanBusy||ui.scanDetected)return;
+        ui.scanDetected=true;
+        void lookupBarcode(code);
+      },()=>{});
+      ui.scannerStarting=starting;
+      await starting;
       ui.scannerActive=true;
-      setScanStatus('Scanner active. Hold a barcode steady in the viewfinder.');
-    } catch(e) {
-      setScanStatus(`Camera could not start: ${esc(e.message || e)}. Please use the manual barcode entry below.`,true);
-      await stopCamera();
-    }
+      if(!ui.scanRequested){await stopCamera();return;}
+      if(!ui.scanBusy)setScanStatus('Camera ready. Hold a barcode in the guide to scan automatically.');
+    }catch(e){
+      ui.scannerActive=false;
+      const scanner=ui.scanner;ui.scanner=null;
+      if(scanner)try{scanner.clear();}catch{}
+      if(placeholder)placeholder.style.display='';
+      if(ui.scanRequested)setScanStatus('Could not open rear camera: '+esc(e.message||e)+'. Use the manual barcode field.',true);
+    }finally{ui.scannerStarting=null;}
   }
-  async function stopCamera() {
-    const scanner=ui.scanner;
-    ui.scanner=null;
-    const active=ui.scannerActive;
-    ui.scannerActive=false;
-    if (scanner) {
-      try {if(active) await scanner.stop();} catch {}
-      try {scanner.clear();} catch {}
+  async function stopCamera(){
+    const pending=ui.scannerStarting;
+    if(pending)try{await pending;}catch{}
+    const scanner=ui.scanner;ui.scanner=null;
+    const active=ui.scannerActive;ui.scannerActive=false;
+    if(scanner){
+      try{if(active)await scanner.stop();}catch{}
+      try{scanner.clear();}catch{}
     }
-    const placeholder=$('#scanner-placeholder');if(placeholder) placeholder.style.display='';
+    const placeholder=$('#scanner-placeholder');
+    if(placeholder)placeholder.style.display='';
   }
   function openProduct(food, meal) {
     ui.food=food;
