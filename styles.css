@@ -48,3 +48,51 @@ html[data-nutrition-theme="gold"] .nav-item.active{border-color:#ad894a;backgrou
 html[data-nutrition-theme="blue"] .nav-item.active{border-color:#487fb6;background:linear-gradient(130deg,#2663a533,#1b273033)}
 html[data-nutrition-theme="gold"] .card{background:linear-gradient(135deg,rgba(255,255,255,.035),transparent 55%),radial-gradient(130% 110% at 100% 0%,rgba(186,136,44,.13),transparent 60%),#14161b}
 html[data-nutrition-theme="blue"] .card{background:linear-gradient(135deg,rgba(255,255,255,.035),transparent 55%),radial-gradient(130% 110% at 100% 0%,rgba(38,117,183,.13),transparent 60%),#14161b}
+
+/* Nutrition Lab v0.3: water volume stepper & macro calorie budget */
+.liquid-actions{display:flex;flex-direction:column;gap:8px;padding:12px 14px 3px}
+.water-stepper{display:grid;grid-template-columns:42px minmax(0,1fr) 42px;gap:8px;align-items:stretch}
+.water-step-button{display:grid;place-items:center;min-height:44px;border-radius:11px;border:1px solid var(--border);background:rgba(255,255,255,.055);color:var(--text);font-size:25px;font-weight:650;line-height:1}
+.water-step-button:active{background:rgba(255,255,255,.13)}
+.water-step-button:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+.water-log-button{display:flex;align-items:center;justify-content:center;min-height:44px;font-weight:800;white-space:nowrap;font-size:13px!important}
+.drink-add-button{min-height:38px;width:100%}
+.target-card{padding:18px}
+.target-macro-label{margin-top:19px;margin-bottom:11px}
+.target-macro-fields{grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.target-macro-fields input{width:100%;min-width:0}
+.target-macro-fields .field{font-size:11px}
+.auto-balance{display:flex;align-items:flex-start;gap:11px;background:rgba(255,255,255,.038);border:1px solid var(--border);border-radius:12px;padding:13px;margin:17px 0;cursor:pointer}
+.auto-balance input{accent-color:var(--red);width:19px;height:19px;flex:none;margin:1px 0}
+.auto-balance span{display:flex;flex-direction:column;gap:5px}
+.auto-balance strong{font-size:12px}
+.auto-balance small{font-size:11px;line-height:1.4;color:var(--muted)}
+.macro-budget-preview{background:rgba(5,6,8,.3);border:1px solid var(--border);border-radius:14px;padding:14px;margin:15px 0}
+.budget-heading{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:7px}
+.budget-status{padding:5px 9px;border-radius:100px;font-size:10px;font-weight:800;border:1px solid var(--border)}
+.budget-status.balanced{color:var(--green);background:rgba(100,207,157,.1);border-color:rgba(100,207,157,.3)}
+.budget-status.under{color:var(--gold);background:rgba(255,191,99,.08)}
+.budget-status.over{color:#ff929c;background:rgba(220,45,70,.15);border-color:rgba(220,45,70,.35)}
+.budget-visual{display:flex;gap:16px;align-items:center;padding:19px 0 14px}
+.macro-donut{width:138px;height:138px;flex:none;display:grid;place-items:center;border-radius:50%;background:conic-gradient(transparent 0 100%);box-shadow:0 0 20px rgba(0,0,0,.15)}
+.macro-donut-centre{width:100px;height:100px;border-radius:50%;background:#16191f;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:3px}
+.macro-donut-centre strong{font-size:23px;font-variant-numeric:tabular-nums;letter-spacing:-.7px}
+.macro-donut-centre span{font-size:10px;color:var(--muted)}
+.macro-donut-centre small{font-size:9px;color:var(--dim);letter-spacing:.6px;text-transform:uppercase}
+.budget-stats{flex:1;min-width:0}
+.budget-remaining{font-size:23px;font-weight:850;line-height:1.1;font-variant-numeric:tabular-nums}
+.budget-remaining-label{display:block;color:var(--muted);font-size:11px;margin:6px 0 13px}
+.budget-stats small{display:block;color:var(--muted);font-size:10px;line-height:1.4;margin-top:8px}
+.budget-track{height:7px;background:rgba(255,255,255,.1);border-radius:30px;overflow:hidden}
+.budget-track div{height:100%;background:var(--red);border-radius:30px;transition:width .12s}
+.budget-breakdown{display:grid;gap:0;border-top:1px solid var(--border)}
+.budget-macro{display:grid;grid-template-columns:9px minmax(0,1fr) auto;column-gap:9px;row-gap:4px;align-items:center;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.055)}
+.budget-dot{height:9px;width:9px;border-radius:50%}
+.budget-macro-name{font-size:12px}
+.budget-macro strong{font-size:12px;font-variant-numeric:tabular-nums}
+.budget-macro-cal{grid-column:2 / 4;font-size:10px;color:var(--muted)}
+.budget-footnote{margin-top:13px!important;margin-bottom:2px!important}
+.budget-error{padding:14px 4px;color:#ff929c;font-size:12px}
+.target-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.target-actions .btn{min-width:0;font-size:12px;min-height:42px;padding:9px}
+@media(max-width:360px){.macro-donut{width:116px;height:116px}.macro-donut-centre{width:86px;height:86px}.macro-donut-centre strong{font-size:20px}.budget-visual{gap:10px}.budget-remaining{font-size:19px}}
