@@ -6,9 +6,9 @@
   <meta name="theme-color" content="#0b0d10" />
   <meta name="description" content="SpartanX Nutrition - a standalone barcode-based nutrition diary prototype." />
   <title>SpartanX | Nutrition Lab</title>
-  <link rel="stylesheet" href="styles.css?v=0.6" />
+  <link rel="stylesheet" href="styles.css?v=0.7" />
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js" integrity="sha512-r6rDA7W6ZeQhvl8S7yRVQUKVHdexq+GAlNkNNqVC7YyIV+NwqCTJe2hDWCiffTyRNOeGEzRRJ9ifvRm/HCzGYg==" crossorigin="anonymous"></script>
-  <script defer src="app.js?v=0.6"></script>
+  <script defer src="app.js?v=0.7"></script>
 </head>
 <body>
   <div class="app-shell">
@@ -37,6 +37,29 @@
       <div class="settings-scroll" id="settings-scroll" tabindex="0" aria-label="Settings content">
         <div id="settings-body"></div>
       </div>
+    </div>
+  </div>
+
+  <div id="scanner-overlay" class="overlay barcode-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="scanner-title">
+    <div class="barcode-dialog">
+      <div class="barcode-dialog-header">
+        <div><span class="eyebrow">SCANNING PRODUCT</span><h2 id="scanner-title">Scan barcode</h2></div>
+        <button type="button" class="icon-button" id="close-scanner" aria-label="Cancel barcode scan">×</button>
+      </div>
+      <div class="barcode-camera-panel">
+        <div id="camera-reader" aria-label="Live rear camera scanner"></div>
+        <div id="scanner-placeholder" class="barcode-placeholder"><span class="scan-glyph">▤</span>Allow access to your rear camera</div>
+        <div class="barcode-sight" aria-hidden="true"><span></span></div>
+      </div>
+      <div class="barcode-scanner-help">
+        <p>Hold the barcode inside the frame. Nutrition Lab detects it automatically — no shutter button needed.</p>
+        <div id="scan-status" class="result-note" role="status" aria-live="polite">Opening rear camera…</div>
+      </div>
+      <form id="scanner-manual-form" class="scanner-manual-lookup">
+        <label for="scanner-manual-input">Or enter the barcode</label>
+        <div class="code-row"><input id="scanner-manual-input" type="text" inputmode="numeric" autocomplete="off" placeholder="8–14 digits" maxlength="14" aria-label="Barcode number"/><button class="btn btn-ghost" type="submit">Look up</button></div>
+      </form>
+      <button type="button" class="btn btn-ghost scanner-cancel" id="cancel-scanner">Cancel scan</button>
     </div>
   </div>
 
