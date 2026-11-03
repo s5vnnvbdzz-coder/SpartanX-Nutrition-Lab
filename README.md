@@ -69,3 +69,12 @@ This is a prototype for testing, not a validated dietary analysis or a live prod
 - Settings shows non-collapsible **About this prototype** at the top, collapsed-by-default **Appearance** second, and non-collapsible **Your Data** last.
 - Choosing a theme while Appearance is expanded keeps it expanded.
 - Static assets use cache-busting version v0.4. All changes are isolated to this repository.
+
+## Nutrition Lab v0.5 — Settings popup
+
+- Settings now opens as a modal overlay, retaining the Home, Scan, My Foods or Targets page underneath.
+- APP PREFERENCES appears on the modal header's top left; a close X appears on the top right.
+- The settings content scrolls independently within the modal on small screens; background interaction and page scrolling are suspended while it is open.
+- Appearance remains collapsed by default; About this prototype and Your Data stay expanded and do not have disclosure arrows.
+- Close Settings using X, Escape or the backdrop; the current page remains active. Selecting a theme updates the modal in place without collapsing Appearance or resetting the scroll position.
+- The previous dedicated Settings route and Back button are no longer used. The original local nutrition data and unrelated projects are unchanged.
