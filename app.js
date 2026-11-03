@@ -178,11 +178,66 @@
     return `<div class="food-list">${foods.map(f=>`<div class="food-row" data-action="open-food" data-id="${esc(f.id)}"><div class="food-mini">${f.source==='manual'?'✎':'▤'}</div><div class="food-text"><div class="food-title">${esc(f.name)}</div><div class="food-meta">${esc(f.brand||'')}${f.brand?' · ':''}${pretty(f.n?.kcal,0)} kcal / 100 ${esc(f.unit||'g')} · ${f.source==='manual'?'Manual':'Open Food Facts'}</div></div>${f.source==='manual' ? `<button class="tiny-action danger" data-action="delete-food" data-id="${esc(f.id)}">Delete</button>` : ''}<span class="food-chevron">›</span></div>`).join('')}</div>`;
   }
 
+
+  const MACRO_KCAL = {protein:4,carbs:4,fat:9};
+  const MACRO_TITLES = {protein:'Protein',carbs:'Carbohydrates',fat:'Fat'};
+  const MACRO_COLORS = {protein:'#79b7f5',carbs:'#f5b75d',fat:'#c18cea'};
+  const MACRO_KEYS = ['protein','carbs','fat'];
+
+  function readTargetForm(form) {
+    const result={};
+    for(const key of ['kcal','protein','carbs','fat']) {
+      const raw=String(form.elements[key].value).trim();
+      result[key]=raw===''?NaN:Number(raw);
+    }
+    return result;
+  }
+  function balanceTargetInputs(form, edited='carbs') {
+    const v=readTargetForm(form);
+    if(!Object.values(v).every(n=>Number.isFinite(n)&&n>=0)||v.kcal<=0)return;
+    // Preserve the value being edited: if fat is edited, balance carbs instead.
+    const adjust=edited==='fat'?'carbs':'fat';
+    const fixed=MACRO_KEYS.filter(k=>k!==adjust).reduce((sum,k)=>sum+v[k]*MACRO_KCAL[k],0);
+    const amount=Math.max(0,Math.round((v.kcal-fixed)/MACRO_KCAL[adjust]));
+    form.elements[adjust].value=String(amount);
+  }
+  function macroBudgetMarkup(v) {
+    if(!Object.values(v).every(n=>Number.isFinite(n)&&n>=0)||v.kcal<=0)
+      return '<p class="budget-error">Enter a positive calorie target and non-negative macro amounts.</p>';
+    const p=v.protein*4,c=v.carbs*4,f=v.fat*9,total=p+c+f,goal=v.kcal,difference=goal-total;
+    const base=Math.max(goal,total,1);
+    const bound=(n)=>Math.min(100,Math.max(0,n/base*100)).toFixed(2)+'%';
+    const a=bound(p),b=bound(p+c),d=bound(p+c+f);
+    const gradient='conic-gradient('+MACRO_COLORS.protein+' 0 '+a+','+MACRO_COLORS.carbs+' '+a+' '+b+','+MACRO_COLORS.fat+' '+b+' '+d+',rgba(255,255,255,.10) '+d+' 100%)';
+    const category=Math.abs(difference)<=25?'balanced':difference>0?'under':'over';
+    const label=category==='balanced'?'Balanced':category==='under'?'Calories remaining':'Over calorie target';
+    const summary=category==='balanced'?'Within '+pretty(Math.abs(difference),0)+' kcal':pretty(Math.abs(difference),0)+' kcal';
+    const breakdown=MACRO_KEYS.map(k=>{
+      const calories=v[k]*MACRO_KCAL[k];
+      return '<div class="budget-macro"><span class="budget-dot" style="background:'+MACRO_COLORS[k]+'"></span><span class="budget-macro-name">'+MACRO_TITLES[k]+'</span><strong>'+pretty(v[k],0)+' g</strong><span class="budget-macro-cal">'+pretty(calories,0)+' kcal · '+pretty(calories/goal*100,1)+'%</span></div>';
+    }).join('');
+    return '<div class="budget-heading"><span class="section-heading">Where your calories go</span><span class="budget-status '+category+'">'+label+'</span></div>'
+      +'<div class="budget-visual"><div class="macro-donut" style="background:'+gradient+'"><div class="macro-donut-centre"><strong>'+pretty(total,0)+'</strong><span>of '+pretty(goal,0)+' kcal</span><small>allocated</small></div></div>'
+      +'<div class="budget-stats"><div class="budget-remaining">'+summary+'</div><span class="budget-remaining-label">'+label+'</span><div class="budget-track"><div style="width:'+progress(total,goal)+'%"></div></div><small>'+pretty(total/goal*100,1)+'% of daily goal assigned</small></div></div>'
+      +'<div class="budget-breakdown">'+breakdown+'</div><p class="field-help budget-footnote">Estimates use 4 kcal/g for protein and carbohydrates, 9 kcal/g for fat. Food labels can differ due to fibre and rounding.</p>';
+  }
+  function refreshMacroBudget(form,edited='') {
+    if(!form)return;
+    if(ui.autoBalance)balanceTargetInputs(form,edited);
+    const preview=$('#macro-budget-preview');
+    if(preview)preview.innerHTML=macroBudgetMarkup(readTargetForm(form));
+  }
   function renderTargets() {
-    return `<div class="eyebrow">PERSONALISED GOALS</div><div class="page-heading-actions"><div><h1 class="page-title">Your targets.</h1><p class="page-subtitle">Daily nutrition goals for your training.</p></div><button class="btn btn-ghost btn-sm" data-action="back-today">← Today</button></div>
-      <section class="card"><form id="goal-form" class="settings-form"><div class="section-heading">Daily nutrition targets</div><div class="form-grid">
-      ${[['kcal','Calories (kcal)'],['protein','Protein (g)'],['carbs','Carbohydrates (g)'],['fat','Fat (g)']].map(([k,l])=>`<label class="field">${l}<input name="${k}" type="number" min="1" max="15000" step="any" value="${esc(state.goals[k])}" required/></label>`).join('')}
-      </div><button type="submit" class="btn btn-primary btn-block">Save targets</button></form><p class="field-help">Targets are independent. Calories are not automatically recalculated from macros.</p></section>`;
+    const macroFields=MACRO_KEYS.map(k=>'<label class="field">'+MACRO_TITLES[k]+' (g)<input name="'+k+'" type="number" min="0" max="15000" step="1" value="'+esc(state.goals[k])+'" required/></label>').join('');
+    return '<div class="eyebrow">PERSONALISED GOALS</div>'
+      +'<div class="page-heading-actions"><div><h1 class="page-title">Your targets.</h1><p class="page-subtitle">Adjust your macros and visualise how they fill your calorie budget.</p></div><button class="btn btn-ghost btn-sm" data-action="back-today">← Today</button></div>'
+      +'<section class="card target-card"><form id="goal-form" class="settings-form">'
+      +'<div class="section-heading">Daily calorie target</div><div class="form-grid"><label class="field span-2 target-calories">Energy budget (kcal)<input name="kcal" type="number" min="1" max="15000" step="1" value="'+esc(state.goals.kcal)+'" required/></label></div>'
+      +'<div class="section-heading target-macro-label">Macronutrient targets</div><div class="form-grid target-macro-fields">'+macroFields+'</div>'
+      +'<label class="auto-balance"><input id="auto-balance" type="checkbox" '+(ui.autoBalance?'checked':'')+'/><span><strong>Automatically balance calories</strong><small>Adjusts fat when editing calories, protein or carbs. Adjusts carbs when editing fat.</small></span></label>'
+      +'<div id="macro-budget-preview" class="macro-budget-preview" aria-live="polite">'+macroBudgetMarkup(state.goals)+'</div>'
+      +'<div class="target-actions"><button type="button" class="btn btn-ghost" data-action="balance-macros">Balance remaining calories</button><button type="submit" class="btn btn-primary">Save targets</button></div>'
+      +'</form></section>';
   }
   function renderSettings() {
     const themes=[['red','Spartan Red','Classic red and charcoal'],['gold','Olympian Gold','Gold and charcoal'],['blue','Arctic Blue','Blue and charcoal']];
@@ -384,6 +439,7 @@
       else if(action==='back-today'){await changeTab('today');}
       else if(action==='set-theme'){const theme=btn.dataset.theme;if(THEMES.includes(theme)){state.theme=theme;persist();render();toast('Theme applied.');}}
       else if(action==='open-manual'){openManual();}
+      else if(action==='balance-macros'){const form=$('#goal-form');if(form){balanceTargetInputs(form,'carbs');const preview=$('#macro-budget-preview');if(preview)preview.innerHTML=macroBudgetMarkup(readTargetForm(form));toast('Remaining calories balanced.');}}
       else if(action==='water-down'){ui.waterAmount=Math.max(10,ui.waterAmount-10);render();}
       else if(action==='water-up'){ui.waterAmount=Math.min(5000,ui.waterAmount+10);render();}
       else if(action==='add-water'){addWater(ui.waterAmount);}
@@ -423,7 +479,7 @@
     if(ev.target.id==='goal-form'){
       ev.preventDefault();const form=ev.target;const next={};
       for(const k of ['kcal','protein','carbs','fat']){
-        const v=Number(form.elements[k].value);if(!Number.isFinite(v)||v<=0||v>15000){toast('Targets must be greater than zero and below 15,000.');return;}next[k]=v;
+        const v=Number(form.elements[k].value);if(!Number.isFinite(v)||v<0||v>15000||(k==='kcal'&&v===0)){toast('Enter a positive calorie goal and non-negative macro values below 15,000.');return;}next[k]=v;
       }
       state.goals=next;persist();render();toast('Daily targets saved.');
     }
@@ -432,8 +488,10 @@
     const target=ev.target;
     if(target.id==='diary-date'){if(/^\d{4}-\d{2}-\d{2}$/.test(target.value)){ui.date=target.value;render();}}
     if(target.id==='meal-select'){ui.meal=target.value;}
+    if(target.id==='auto-balance'){ui.autoBalance=target.checked;refreshMacroBudget(target.form || $('#goal-form'),'carbs');}
   });
   document.addEventListener('input',(ev)=>{
+    if(ev.target.closest?.('#goal-form') && ['kcal','protein','carbs','fat'].includes(ev.target.name)) refreshMacroBudget(ev.target.form || $('#goal-form'),ev.target.name);
     if(ev.target.id==='portion-input'){ui.amount=Number(ev.target.value);renderPortionPreview();}
     if(ev.target.id==='food-search'){
       const q=ev.target.value.trim().toLowerCase();const foods=getLibrary().filter(f=>`${f.name} ${f.brand||''} ${f.barcode||''}`.toLowerCase().includes(q));
