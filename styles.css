@@ -127,3 +127,42 @@ html[data-nutrition-theme="blue"] .card{background:linear-gradient(135deg,rgba(2
 /* Target editing is a focused, nav-free screen. Navigation returns on Save/Back. */
 body.targets-screen .bottom-nav{display:none!important;}
 body.targets-screen .app-shell{padding-bottom:calc(18px + env(safe-area-inset-bottom, 0px));}
+
+/* v0.7 — Rear-camera barcode capture and food/fluid serving editor */
+.scan-hero{min-height:178px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;padding:22px 20px;text-align:center;border:1px dashed rgba(239,86,103,.35);border-radius:14px;background:radial-gradient(circle at 50% 12%,rgba(191,39,58,.14),transparent 70%),rgba(4,6,9,.65)}
+.scan-hero .scan-glyph{font-size:43px;line-height:1.1;color:var(--red)}
+.scan-hero strong{font-size:17px}
+.scan-hero span:last-child{font-size:12px;line-height:1.5;color:var(--muted);max-width:280px}
+.barcode-overlay{z-index:105;align-items:center;justify-content:center;padding:max(10px,env(safe-area-inset-top)) 10px max(10px,env(safe-area-inset-bottom));background:rgba(1,2,4,.94);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.barcode-dialog{display:flex;flex-direction:column;max-height:calc(100dvh - 20px);width:min(100%,560px);border:1px solid #49404a;border-radius:18px;overflow:hidden;background:#12151b;box-shadow:0 28px 75px rgba(0,0,0,.6)}
+.barcode-dialog-header{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:15px 16px;background:rgba(12,14,19,.96);border-bottom:1px solid var(--border)}
+.barcode-dialog-header h2{font-size:18px;margin:5px 0 0;letter-spacing:-.3px}
+.barcode-camera-panel{background:#030405;position:relative;min-height:240px;height:min(53dvh,490px);overflow:hidden;display:flex;align-items:center;justify-content:center}
+#camera-reader{width:100%;height:100%;display:flex;align-items:center;justify-content:center}
+#camera-reader video{width:100%!important;height:100%!important;max-height:none!important;object-fit:cover!important;display:block!important}
+#camera-reader canvas{max-width:100%;max-height:100%}
+.barcode-placeholder{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:var(--muted);font-size:12px;text-align:center;padding:20px;pointer-events:none}
+.barcode-placeholder .scan-glyph{color:var(--red);font-size:48px}
+.barcode-sight{position:absolute;inset:50% auto auto 50%;width:min(78%,340px);height:140px;transform:translate(-50%,-50%);border:1.5px solid rgba(255,255,255,.28);border-radius:10px;pointer-events:none;box-shadow:0 0 0 200vmax rgba(0,0,0,.12)}
+.barcode-sight::before,.barcode-sight::after{content:"";position:absolute;left:8px;right:8px;height:2px;background:linear-gradient(90deg,transparent,var(--red),transparent)}
+.barcode-sight::before{top:9px;opacity:.8}.barcode-sight::after{bottom:9px;opacity:.55}
+.barcode-scanner-help{padding:12px 16px 3px;overflow:auto;min-height:0}
+.barcode-scanner-help p{margin:0 0 7px;font-size:12px;line-height:1.45;color:var(--muted)}
+.barcode-scanner-help .result-note{margin:7px 0 5px;font-size:12px}
+.scanner-manual-lookup{padding:5px 16px 10px}
+.scanner-manual-lookup label{color:var(--muted);font-size:11px;display:block;margin:6px 0}
+.scanner-manual-lookup .code-row input{min-width:0}
+.scanner-cancel{margin:0 16px 16px;min-height:42px}
+.portion-controls{margin-top:8px;border:1px solid var(--border);border-radius:14px;padding:15px;background:rgba(255,255,255,.025)}
+.portion-stepper{display:grid;grid-template-columns:46px minmax(0,1fr) 46px;gap:9px;align-items:stretch}
+.portion-stepper .portion-adjust{height:48px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.19);border-radius:10px;background:rgba(255,255,255,.055);color:var(--text);font-weight:750;font-size:25px}
+.portion-stepper .portion-adjust:focus-visible{outline:2px solid var(--red);outline-offset:3px}
+.portion-stepper input{width:100%;min-width:0;text-align:center;font-size:22px;font-weight:800;min-height:48px;border:1px solid var(--border);border-radius:10px;color:var(--text);background:rgba(0,0,0,.18);font-variant-numeric:tabular-nums}
+.portion-step-label{font-size:11px;color:var(--muted);text-align:center;margin:7px 0 15px}
+.portion-controls .portion-form{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.portion-controls .portion-form .field{min-width:0;font-size:12px}
+.portion-controls .portion-form select{min-width:0;width:100%;font-size:12px}
+.product-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:15px}
+.product-actions .btn{min-width:0;padding:12px 7px;font-size:13px}
+@media(max-height:680px){.barcode-camera-panel{height:38dvh;min-height:180px}.barcode-dialog{overflow:auto}}
+@media(max-width:390px){.portion-controls{padding:11px}.portion-controls .portion-form{gap:7px}.product-actions .btn{font-size:12px}.barcode-sight{height:120px}}
