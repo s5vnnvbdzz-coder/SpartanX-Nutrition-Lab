@@ -404,9 +404,64 @@
     const placeholder=$('#scanner-placeholder');
     if(placeholder)placeholder.style.display='';
   }
+
+  const PORTION_UNITS={
+    g:[
+      {id:'g',label:'Grams (g)',short:'g',factor:1,step:10},
+      {id:'kg',label:'Kilograms (kg)',short:'kg',factor:1000,step:0.1},
+      {id:'oz',label:'Ounces (oz)',short:'oz',factor:28.349523125,step:0.5},
+      {id:'lb',label:'Pounds (lb)',short:'lb',factor:453.59237,step:0.1},
+      {id:'serving',label:'Serving',short:'serving',factor:null,step:0.5}
+    ],
+    ml:[
+      {id:'ml',label:'Millilitres (ml)',short:'ml',factor:1,step:10},
+      {id:'cl',label:'Centilitres (cl)',short:'cl',factor:10,step:1},
+      {id:'l',label:'Litres (L)',short:'L',factor:1000,step:0.1},
+      {id:'fl-oz-uk',label:'UK fluid ounces (fl oz)',short:'UK fl oz',factor:28.4130625,step:0.5},
+      {id:'fl-oz-us',label:'US fluid ounces (fl oz)',short:'US fl oz',factor:29.5735295625,step:0.5},
+      {id:'cup',label:'Metric cups (250 ml)',short:'cups',factor:250,step:0.25},
+      {id:'pt-uk',label:'UK pints (568 ml)',short:'UK pints',factor:568.26125,step:0.25},
+      {id:'tbsp',label:'Tablespoons (15 ml)',short:'tbsp',factor:15,step:1},
+      {id:'tsp',label:'Teaspoons (5 ml)',short:'tsp',factor:5,step:1},
+      {id:'serving',label:'Serving',short:'serving',factor:null,step:0.5}
+    ]
+  };
+  function portionUnitConfig(food,selected=ui.portionUnit){
+    const choices=PORTION_UNITS[food?.unit==='ml'?'ml':'g'];
+    const found=choices.find(v=>v.id===selected)||choices[0];
+    return {...found,factor:found.id==='serving'?(Number(food?.servingAmount)||100):found.factor};
+  }
+  function roundPortion(n){return Number(Number(n).toFixed(3));}
+  function updateServingAmount(qty){
+    const option=portionUnitConfig(ui.food);
+    ui.portionQuantity=roundPortion(qty);
+    ui.amount=ui.portionQuantity*option.factor;
+    renderPortionPreview();
+  }
+  function stepServing(direction){
+    if(!ui.food)return;
+    const option=portionUnitConfig(ui.food);
+    const next=Math.max(option.step,roundPortion(ui.portionQuantity+direction*option.step));
+    if(next*option.factor>100000)return;
+    updateServingAmount(next);
+    const input=$('#portion-input');if(input)input.value=String(ui.portionQuantity);
+  }
+  function changeServingUnit(unit){
+    if(!ui.food)return;
+    const available=PORTION_UNITS[ui.food.unit==='ml'?'ml':'g'];
+    if(!available.some(v=>v.id===unit))return;
+    ui.portionUnit=unit;
+    const option=portionUnitConfig(ui.food);
+    ui.portionQuantity=roundPortion(ui.amount/option.factor);
+    const input=$('#portion-input');if(input){input.value=String(ui.portionQuantity);input.step=String(option.step);}
+    const stepDisplay=$('#portion-step-label');if(stepDisplay)stepDisplay.textContent='± '+option.step+' '+option.short;
+    renderPortionPreview();
+  }
   function openProduct(food, meal) {
     ui.food=food;
-    ui.amount=food.servingAmount||100;
+    ui.portionUnit=food.unit==='ml'?'ml':'g';
+    ui.portionQuantity=Number(food.servingAmount)|| (food.unit==='ml'?250:100);
+    ui.amount=ui.portionQuantity;
     ui.meal=meal || ui.pendingMeal || (food.unit==='ml' ? 'Liquids' : 'Breakfast');
     ui.pendingMeal=null;
     $('#product-overlay').classList.remove('hidden');
@@ -433,25 +488,35 @@
       <div class="section-line"><h2>Vitamins & minerals</h2><span class="chip">${micros.length} available</span></div>
       ${micros.length?`<div class="nutri-list">${micros.map(([key,label,unit,factor])=>nutrientRow(label,food.micros[key]*factor,unit)).join('')}</div>`:'<div class="nutri-empty">No vitamin or mineral values are reported for this product. This does not mean the food contains none.</div>'}
       <div class="section-line"><h2>Log to diary</h2></div>
-      <div class="portion-form"><label class="field">Amount (${esc(food.unit)})<input id="portion-input" type="number" min="0.1" max="100000" step="any" value="${esc(ui.amount)}" required/></label>
-      <label class="field">Meal<select id="meal-select">${MEALS.map(m=>`<option value="${esc(m)}" ${ui.meal===m?'selected':''}>${esc(m)}</option>`).join('')}</select></label></div>
-      <div class="portion-preview" id="portion-preview"></div>
-      <div class="product-footer"><button class="btn btn-primary btn-block" id="confirm-log">+ Add to food diary</button></div>
-      <p class="footnote" style="margin-top:14px">Nutrition is scaled linearly from values per 100 ${esc(food.unit)}. For liquids, Open Food Facts may provide values per 100 g rather than per 100 ml; verify against the packaging before logging.</p>`;
+      <div class="portion-controls">
+        <div class="section-heading" style="margin-bottom:11px">${food.unit==='ml'?'Drink quantity':'Food quantity'}</div>
+        <div class="portion-stepper">
+          <button type="button" class="portion-adjust" data-action="portion-minus" aria-label="Decrease serving amount">−</button>
+          <input id="portion-input" type="number" min="0.001" max="100000" inputmode="decimal" step="${portionUnitConfig(food).step}" value="${esc(ui.portionQuantity)}" aria-label="Portion quantity"/>
+          <button type="button" class="portion-adjust" data-action="portion-plus" aria-label="Increase serving amount">+</button>
+        </div>
+        <div id="portion-step-label" class="portion-step-label">± ${portionUnitConfig(food).step} ${portionUnitConfig(food).short}</div>
+        <div class="portion-form"><label class="field">Measurement<select id="portion-unit">${PORTION_UNITS[food.unit==='ml'?'ml':'g'].map(o=>`<option value="${esc(o.id)}" ${ui.portionUnit===o.id?'selected':''}>${esc(o.label)}</option>`).join('')}</select></label>
+          <label class="field">Log under<select id="meal-select">${MEALS.map(m=>`<option value="${esc(m)}" ${ui.meal===m?'selected':''}>${esc(m)}</option>`).join('')}</select></label></div>
+        <div class="portion-preview" id="portion-preview"></div>
+        <div class="product-footer product-actions"><button type="button" class="btn btn-ghost" data-action="discard-product">Cancel / Discard</button><button type="button" class="btn btn-primary" id="confirm-log">Log</button></div>
+      </div>
+      <p class="footnote" style="margin-top:14px">Nutrition is based on values per 100 ${esc(food.unit)} as supplied by Open Food Facts. Verify labels if accuracy matters.</p>`;
     renderPortionPreview();
   }
   function renderPortionPreview() {
     if(!ui.food)return;
     const portion=stats(ui.food,ui.amount);
     const el=$('#portion-preview'); if(!el)return;
-    el.innerHTML=`<div class="row-between"><span>YOUR PORTION</span><span>${pretty(ui.amount)} ${esc(ui.food.unit)}</span></div><div style="margin-top:8px"><strong>${pretty(portion.kcal,0)} kcal</strong> &nbsp;·&nbsp; P ${pretty(portion.protein)}g &nbsp;·&nbsp; C ${pretty(portion.carbs)}g &nbsp;·&nbsp; F ${pretty(portion.fat)}g</div>`;
+    const unit=portionUnitConfig(ui.food);
+    el.innerHTML=`<div class="row-between"><span>YOUR PORTION</span><span>${pretty(ui.portionQuantity,3)} ${esc(unit.short)} · ${pretty(ui.amount,1)} ${esc(ui.food.unit)}</span></div><div style="margin-top:8px"><strong>${pretty(portion.kcal,0)} kcal</strong> &nbsp;·&nbsp; P ${pretty(portion.protein)}g &nbsp;·&nbsp; C ${pretty(portion.carbs)}g &nbsp;·&nbsp; F ${pretty(portion.fat)}g</div>`;
   }
   function logFood() {
     if(!ui.food)return;
     if(!Number.isFinite(ui.amount)||ui.amount<=0||ui.amount>100000){toast('Enter a valid serving amount.');return;}
     const n=ui.food.n||{};
     if(['kcal','protein','carbs','fat'].every(k=>n[k]===null||n[k]===undefined)) {toast('This record has no usable nutrients. Create a manual food instead.');return;}
-    state.entries.push({id:uid(),date:ui.date,meal:ui.meal,amount:ui.amount,unit:ui.food.unit,food:structuredCloneSafe(ui.food),createdAt:Date.now()});
+    state.entries.push({id:uid(),date:ui.date,meal:ui.meal,amount:ui.amount,unit:ui.food.unit,displayAmount:ui.portionQuantity,displayUnit:ui.portionUnit,food:structuredCloneSafe(ui.food),createdAt:Date.now()});
     persist();closeProduct();toast(`Added to ${ui.meal.toLowerCase()} · ${ui.date}`);changeTab('today');
   }
   function addWater(amount=250) {
