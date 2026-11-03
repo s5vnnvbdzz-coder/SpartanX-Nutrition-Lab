@@ -119,6 +119,13 @@
       ${MEALS.map(meal => renderMeal(meal, entries)).join('')}
       <p class="footnote">Data is saved on this device only. Backup your diary from Settings → Your Data before clearing browser data.</p>`;
   }
+  function entryAmountLabel(entry){
+    if(entry.displayUnit && Number.isFinite(Number(entry.displayAmount))){
+      const selected=PORTION_UNITS[entry.unit==='ml'?'ml':'g']?.find(v=>v.id===entry.displayUnit);
+      return pretty(Number(entry.displayAmount),3)+' '+esc(selected?.short||entry.displayUnit);
+    }
+    return pretty(entry.amount)+' '+esc(entry.unit);
+  }
   function renderMeal(meal, entries) {
     const matching = entries.filter(e=>e.meal===meal);
     if(meal==='Liquids') return renderLiquids(matching);
@@ -126,7 +133,7 @@
     return `<section class="card meal-card"><div class="meal-top"><div class="meal-heading">${esc(meal)}</div><div style="display:flex;align-items:center;gap:10px"><span class="meal-total">${pretty(kcal,0)} kcal</span><button class="btn btn-sm btn-soft" data-action="add-to-meal" data-meal="${esc(meal)}">+ Add</button></div></div>
       ${matching.length ? matching.map(e => {
         const s = stats(e.food,e.amount), photo=safeImage(e.food.image);
-        return `<div class="meal-entry"><div class="meal-entry-icon">${photo?`<img src="${esc(photo)}" alt="" loading="lazy"/>`:'◉'}</div><div class="meal-entry-content"><div class="meal-entry-name">${esc(e.food.name)}</div><div class="meal-entry-detail">${pretty(e.amount)} ${esc(e.unit)} · P ${pretty(s.protein)}g · C ${pretty(s.carbs)}g · F ${pretty(s.fat)}g</div></div><div class="meal-entry-action"><strong>${pretty(s.kcal,0)} kcal</strong><button class="tiny-action" data-action="remove-entry" data-id="${esc(e.id)}">Remove</button></div></div>`;
+        return `<div class="meal-entry"><div class="meal-entry-icon">${photo?`<img src="${esc(photo)}" alt="" loading="lazy"/>`:'◉'}</div><div class="meal-entry-content"><div class="meal-entry-name">${esc(e.food.name)}</div><div class="meal-entry-detail">${entryAmountLabel(e)} · P ${pretty(s.protein)}g · C ${pretty(s.carbs)}g · F ${pretty(s.fat)}g</div></div><div class="meal-entry-action"><strong>${pretty(s.kcal,0)} kcal</strong><button class="tiny-action" data-action="remove-entry" data-id="${esc(e.id)}">Remove</button></div></div>`;
       }).join('') : '<div class="meal-empty">Nothing logged yet</div>'}</section>`;
   }
 
@@ -140,7 +147,7 @@
       <button class="muted-button liquid-custom" data-action="custom-water">Log a different water amount</button>
       ${matching.length ? matching.map(e => {
         const s=stats(e.food,e.amount),photo=safeImage(e.food.image);
-        return `<div class="meal-entry"><div class="meal-entry-icon">${photo?`<img src="${esc(photo)}" alt="" loading="lazy"/>`:'💧'}</div><div class="meal-entry-content"><div class="meal-entry-name">${esc(e.food.name)}</div><div class="meal-entry-detail">${pretty(e.amount)} ${esc(e.unit)} · P ${pretty(s.protein)}g · C ${pretty(s.carbs)}g · F ${pretty(s.fat)}g</div></div><div class="meal-entry-action"><strong>${pretty(s.kcal,0)} kcal</strong><button class="tiny-action" data-action="remove-entry" data-id="${esc(e.id)}">Remove</button></div></div>`;
+        return `<div class="meal-entry"><div class="meal-entry-icon">${photo?`<img src="${esc(photo)}" alt="" loading="lazy"/>`:'💧'}</div><div class="meal-entry-content"><div class="meal-entry-name">${esc(e.food.name)}</div><div class="meal-entry-detail">${entryAmountLabel(e)} · P ${pretty(s.protein)}g · C ${pretty(s.carbs)}g · F ${pretty(s.fat)}g</div></div><div class="meal-entry-action"><strong>${pretty(s.kcal,0)} kcal</strong><button class="tiny-action" data-action="remove-entry" data-id="${esc(e.id)}">Remove</button></div></div>`;
       }).join('') : '<div class="meal-empty">No drinks logged for this day</div>'}
       <p class="liquid-footnote">Fluid totals include entries recorded in ml. Drinks also contribute to daily calories and macros.</p></section>`;
   }
@@ -350,7 +357,7 @@
   }
   function notFound(code) {
     ui.manualBarcode=code;
-    setScanStatus(`Barcode ${esc(code)} was not found. <button class="muted-button" data-action="manual-unfound">Create this product manually</button> or scan again.`,true);
+    setScanStatus(`Barcode ${esc(code)} was not found. <button class="muted-button" data-action="manual-unfound">Create this product manually</button> <button class="muted-button" data-action="rescan-barcode">Scan again</button>.`,true);
   }
   function addRecent(food) {
     state.recent=[food,...state.recent.filter(f=>f.id!==food.id)].slice(0,35);
@@ -591,7 +598,7 @@
     if(btn){
       const action=btn.dataset.action;
       if(action==='prev-date'||action==='next-date'){ui.date=datePlus(ui.date,action==='prev-date'?-1:1);render();}
-      else if(action==='go-scan'){ui.pendingMeal=null;await changeTab('scan');}
+      else if(action==='go-scan'){ui.pendingMeal=null;await changeTab('scan');await startCamera();}
       else if(action==='open-targets'){await changeTab('targets');}
       else if(action==='back-today'){await changeTab('today');}
       else if(action==='set-theme'){const theme=btn.dataset.theme;if(THEMES.includes(theme)){
