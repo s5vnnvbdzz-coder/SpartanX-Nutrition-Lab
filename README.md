@@ -52,3 +52,11 @@ This is a prototype for testing, not a validated dietary analysis or a live prod
 - **Barcode flow:** one Scan Barcode button starts the camera; scanning stops after successful lookup or when leaving Scan. Create Food remains alongside it; manual barcode entry is still available.
 - **Settings:** header icon redrawn; Appearance (Spartan Red, Olympian Gold and Arctic Blue themes), About this prototype, and Your Data (export or clear) now live here. The bottom navigation has Today, Scan and My Foods only.
 - **Data:** the existing local-storage key and prior nutrition logs are preserved. Themes are also saved locally. This project remains separate from SpartanX and AscensionX.
+
+## Nutrition Lab v0.3 — hydration controls and macro calorie budget
+
+- Liquids now has a water quantity control: − 10 ml | log selected ml | + 10 ml. Starts at 250 ml, with 10–5,000 ml bounds. Adjusting does not log water until you press the middle button.
+- Targets now provides a live calorie-allocation chart showing how many kcal protein, carbs and fat contribute using 4/4/9 kcal per gram.
+- Auto-balance defaults to on: changing calories, protein, or carbs updates fat to approximately fill the budget. Changing fat instead updates carbs. When a fixed macro selection already exceeds the budget, adjustable macros bottom out at 0 and the preview reports an overage.
+- Auto-balance can be turned off for independent macro edits. There is also a manual balance action. Differences of up to 25 kcal are labelled Balanced.
+- The original local-storage key and existing diary remain unchanged. New files use ?v=0.3 to avoid stale iPhone browser assets.
