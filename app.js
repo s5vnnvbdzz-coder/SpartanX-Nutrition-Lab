@@ -374,11 +374,12 @@
     try{
       const formats=window.Html5QrcodeSupportedFormats;
       const scanner=new Html5Qrcode('camera-reader',{
-        formatsToSupport:formats?[formats.EAN_13,formats.EAN_8,formats.UPC_A,formats.UPC_E]:undefined,verbose:false
+        formatsToSupport:formats?[formats.EAN_13,formats.EAN_8,formats.UPC_A,formats.UPC_E]:undefined,
+        experimentalFeatures:{useBarCodeDetectorIfSupported:true},verbose:false
       });
       ui.scanner=scanner;
       if(placeholder)placeholder.style.display='none';
-      const starting=scanner.start({facingMode:'environment'},{fps:15,videoConstraints:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},qrbox:(w,h)=>({
+      const starting=scanner.start({facingMode:'environment'},{fps:20,disableFlip:true,videoConstraints:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},qrbox:(w,h)=>({
         width:Math.min(340,Math.max(160,w-36)),
         height:Math.min(160,Math.max(90,h-40))
       })},(code)=>{
