@@ -378,7 +378,7 @@
       });
       ui.scanner=scanner;
       if(placeholder)placeholder.style.display='none';
-      const starting=scanner.start({facingMode:'environment'},{fps:12,qrbox:(w,h)=>({
+      const starting=scanner.start({facingMode:'environment'},{fps:15,videoConstraints:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},qrbox:(w,h)=>({
         width:Math.min(340,Math.max(160,w-36)),
         height:Math.min(160,Math.max(90,h-40))
       })},(code)=>{
@@ -389,6 +389,17 @@
       ui.scannerStarting=starting;
       await starting;
       ui.scannerActive=true;
+      // Safari may not expose autofocus controls. Apply only supported options.
+      try {
+        const video=$('#camera-reader video');
+        const track=video?.srcObject?.getVideoTracks?.()[0];
+        if(track?.getCapabilities && track?.applyConstraints){
+          const caps=track.getCapabilities();
+          const advanced={};
+          if(Array.isArray(caps.focusMode)&&caps.focusMode.includes('continuous'))advanced.focusMode='continuous';
+          if(Object.keys(advanced).length)await track.applyConstraints({advanced:[advanced]});
+        }
+      } catch(e) { /* Camera continues with its browser-managed focus. */ }
       if(!ui.scanRequested){await stopCamera();return;}
       if(!ui.scanBusy)setScanStatus('Camera ready. Hold a barcode in the guide to scan automatically.');
     }catch(e){
