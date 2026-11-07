@@ -235,3 +235,21 @@ body.targets-screen .app-shell{padding-bottom:calc(18px + env(safe-area-inset-bo
   .pull-refresh-indicator,.pull-refresh-icon{transition:none}
   .pull-refresh-indicator.refreshing .pull-refresh-icon{animation:none}
 }
+
+
+/* v1.1 — iPhone barcode camera with rear-lens selection and still-photo fallback. */
+.barcode-dialog{min-height:0}
+.barcode-camera-panel{min-height:190px}
+#camera-reader{min-width:0;overflow:hidden}
+#camera-reader video{object-fit:contain!important;transform:none!important}
+.barcode-sight{width:min(90%,440px);height:min(42%,185px)}
+.scanner-camera-controls{display:flex;align-items:center;gap:10px;margin:9px 0 5px}
+.scanner-camera-controls[hidden]{display:none!important}
+.scanner-camera-controls label{flex:0 0 auto;font-size:11px;color:var(--muted);font-weight:700}
+.scanner-camera-controls select{flex:1;min-width:0;max-width:100%;font-size:14px;border-radius:9px;padding:8px 10px;background:#171c26;color:var(--text);border:1px solid var(--border)}
+.barcode-scanner-help .scanner-tip{font-size:11px;color:var(--muted);margin:9px 0 5px;line-height:1.45}
+.scanner-fallback-actions{padding:5px 16px 16px;display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.scanner-fallback-actions .btn{margin:0;min-width:0;min-height:43px;padding:10px 8px;font-size:12px}
+.scanner-fallback-actions .scanner-cancel{margin:0}
+@media(max-width:390px){.scanner-fallback-actions .btn{font-size:11px}.barcode-camera-panel{min-height:175px;height:39dvh}}
+@media(max-height:690px){.barcode-dialog{overflow:auto;max-height:calc(100dvh - 20px)}}
