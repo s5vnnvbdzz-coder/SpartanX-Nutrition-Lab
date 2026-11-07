@@ -25,7 +25,7 @@
   const $ = (query) => document.querySelector(query);
   const $$ = (query) => [...document.querySelectorAll(query)];
   const today = () => localDate(new Date());
-  const ui = { tab: 'today', date: today(), food: null, amount: 100, meal: 'Breakfast', scanBusy: false, scanner: null, scannerActive: false, manualBarcode: '', toastTimer: null, pendingMeal: null, waterAmount: 250, autoBalance: true, scannerStarting: null, scanRequested:false, scanDetected:false, portionUnit:'g', portionQuantity:100 };
+  const ui = { tab: 'today', date: today(), food: null, amount: 100, meal: 'Breakfast', scanBusy: false, scanner: null, scannerActive: false, manualBarcode: '', toastTimer: null, pendingMeal: null, waterAmount: 250, autoBalance: true, scannerStarting: null, scanRequested:false, scanDetected:false, cameraDeviceId:'', photoBusy:false, portionUnit:'g', portionQuantity:100 };
   let state = loadState();
 
   function localDate(date) {
@@ -363,65 +363,137 @@
     state.recent=[food,...state.recent.filter(f=>f.id!==food.id)].slice(0,35);
     persist();
   }
-  async function startCamera(){
-    if(ui.scannerActive||ui.scannerStarting||ui.scanBusy)return;
+
+  // Try backup CDNs only when the scanner script was blocked or did not load.
+  let scannerLoader=null;
+  async function loadScannerDecoder(){
+    if(typeof Html5Qrcode!=='undefined')return;
+    if(scannerLoader)return scannerLoader;
+    scannerLoader=(async()=>{
+      for(const url of ['https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js','https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js']){
+        try{
+          await new Promise((resolve,reject)=>{
+            const tag=document.createElement('script');tag.async=true;tag.src=url;
+            tag.onload=()=>typeof Html5Qrcode!=='undefined'?resolve():reject(new Error('Decoder missing'));
+            tag.onerror=()=>reject(new Error('Decoder download failed'));
+            document.head.appendChild(tag);
+          });
+          return;
+        }catch(e){}
+      }
+      throw new Error('Could not load scanner decoder. Check internet access.');
+    })();
+    try{await scannerLoader;}finally{scannerLoader=null;}
+  }
+  const scannerFormats=()=>{
+    const f=window.Html5QrcodeSupportedFormats;
+    return f?[f.EAN_13,f.EAN_8,f.UPC_A,f.UPC_E,f.CODE_128].filter(v=>v!==undefined):undefined;
+  };
+  async function scanCameraOptions(){
+    const picker=$('#scanner-camera-choice'),holder=$('#scanner-camera-controls');
+    if(!picker||!holder||!navigator.mediaDevices?.enumerateDevices)return;
+    try{
+      const devices=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput'&&d.deviceId);
+      const nonFront=devices.filter(d=>!/front|facetime|user facing/i.test(d.label));
+      const choices=nonFront.length?nonFront:devices;
+      holder.hidden=choices.length<2;
+      if(choices.length<2)return;
+      picker.replaceChildren();
+      const auto=document.createElement('option');auto.value='';auto.textContent='Automatic rear camera';picker.append(auto);
+      choices.forEach((d,i)=>{
+        const option=document.createElement('option');option.value=d.deviceId;
+        option.textContent=d.label||'Camera '+(i+1);picker.append(option);
+      });
+      picker.value=choices.some(d=>d.deviceId===ui.cameraDeviceId)?ui.cameraDeviceId:'';
+    }catch(e){holder.hidden=true;}
+  }
+  async function tuneScannerCamera(scanner){
+    try{
+      const caps=scanner.getRunningTrackCapabilities?.()||{},advanced={};
+      if(Array.isArray(caps.focusMode)&&caps.focusMode.includes('continuous'))advanced.focusMode='continuous';
+      const min=Number(caps.zoom?.min),max=Number(caps.zoom?.max);
+      if(Number.isFinite(min)&&Number.isFinite(max)&&max>min)advanced.zoom=Math.min(max,Math.max(min,1.25));
+      if(Object.keys(advanced).length)await scanner.applyVideoConstraints?.({advanced:[advanced]});
+    }catch(e){/* Browser-managed autofocus remains available. */}
+  }
+  async function startCamera(deviceId=ui.cameraDeviceId){
+    if(ui.scannerActive||ui.scannerStarting||ui.scanBusy||ui.photoBusy)return;
     openScannerModal();
-    setScanStatus('Opening rear camera…');
-    if(!window.isSecureContext){setScanStatus('Camera needs a secure HTTPS connection. You can enter the barcode below.',true);return;}
-    if(!navigator.mediaDevices?.getUserMedia){setScanStatus('Camera access is unavailable. Use manual barcode entry instead.',true);return;}
-    if(typeof Html5Qrcode==='undefined'){setScanStatus('Scanner library did not load. Check your connection or use manual barcode entry.',true);return;}
+    setScanStatus('Starting rear camera…');
+    if(!window.isSecureContext){setScanStatus('Camera requires HTTPS. Try a barcode photo.',true);return;}
+    if(!navigator.mediaDevices?.getUserMedia){setScanStatus('Camera is unavailable. Use a barcode photo.',true);return;}
     const placeholder=$('#scanner-placeholder');
     try{
-      const formats=window.Html5QrcodeSupportedFormats;
+      await loadScannerDecoder();
+      if(!ui.scanRequested)return;
       const scanner=new Html5Qrcode('camera-reader',{
-        formatsToSupport:formats?[formats.EAN_13,formats.EAN_8,formats.UPC_A,formats.UPC_E]:undefined,
-        experimentalFeatures:{useBarCodeDetectorIfSupported:true},verbose:false
+        formatsToSupport:scannerFormats(),
+        experimentalFeatures:{useBarCodeDetectorIfSupported:true},
+        verbose:false
       });
       ui.scanner=scanner;
       if(placeholder)placeholder.style.display='none';
-      const starting=scanner.start({facingMode:'environment'},{fps:20,disableFlip:true,videoConstraints:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},qrbox:(w,h)=>({
-        width:Math.min(340,Math.max(160,w-36)),
-        height:Math.min(160,Math.max(90,h-40))
-      })},(code)=>{
+      const selected=deviceId?{deviceId:{exact:deviceId}}:{facingMode:'environment'};
+      const starting=scanner.start(selected,{
+        fps:12,disableFlip:true,
+        qrbox:(width,height)=>({width:Math.max(120,Math.min(440,width-14)),height:Math.max(70,Math.min(185,height-14))})
+      },value=>{
         if(!ui.scanRequested||ui.scanBusy||ui.scanDetected)return;
+        const code=String(value||'').replace(/\s/g,'');
+        if(!/^\d{8,14}$/.test(code))return;
         ui.scanDetected=true;
         void lookupBarcode(code);
       },()=>{});
       ui.scannerStarting=starting;
       await starting;
       ui.scannerActive=true;
-      // Safari may not expose autofocus controls. Apply only supported options.
-      try {
-        const video=$('#camera-reader video');
-        const track=video?.srcObject?.getVideoTracks?.()[0];
-        if(track?.getCapabilities && track?.applyConstraints){
-          const caps=track.getCapabilities();
-          const advanced={};
-          if(Array.isArray(caps.focusMode)&&caps.focusMode.includes('continuous'))advanced.focusMode='continuous';
-          if(Object.keys(advanced).length)await track.applyConstraints({advanced:[advanced]});
-        }
-      } catch(e) { /* Camera continues with its browser-managed focus. */ }
       if(!ui.scanRequested){await stopCamera();return;}
-      if(!ui.scanBusy)setScanStatus('Camera ready. Hold a barcode in the guide to scan automatically.');
+      await tuneScannerCamera(scanner);
+      void scanCameraOptions();
+      if(!ui.scanBusy)setScanStatus('Scanning automatically. Hold the barcode steady; if it will not focus, choose another camera or use a barcode photo.');
     }catch(e){
       ui.scannerActive=false;
-      const scanner=ui.scanner;ui.scanner=null;
-      if(scanner)try{scanner.clear();}catch{}
+      const instance=ui.scanner;ui.scanner=null;
+      if(instance)try{await instance.clear();}catch(err){}
       if(placeholder)placeholder.style.display='';
-      if(ui.scanRequested)setScanStatus('Could not open rear camera: '+esc(e.message||e)+'. Use the manual barcode field.',true);
+      if(ui.scanRequested)setScanStatus('Camera error: '+esc(e.message||e)+'. Try another camera or a barcode photo.',true);
     }finally{ui.scannerStarting=null;}
   }
   async function stopCamera(){
     const pending=ui.scannerStarting;
-    if(pending)try{await pending;}catch{}
-    const scanner=ui.scanner;ui.scanner=null;
+    if(pending)try{await pending;}catch(e){}
+    const instance=ui.scanner;ui.scanner=null;
     const active=ui.scannerActive;ui.scannerActive=false;
-    if(scanner){
-      try{if(active)await scanner.stop();}catch{}
-      try{scanner.clear();}catch{}
+    if(instance){
+      try{if(active)await instance.stop();}catch(e){}
+      try{await instance.clear();}catch(e){}
     }
     const placeholder=$('#scanner-placeholder');
     if(placeholder)placeholder.style.display='';
+  }
+  async function scanBarcodePhoto(file){
+    if(!file||!scannerIsOpen()||ui.scanBusy||ui.photoBusy)return;
+    if(!file.type.startsWith('image/')){setScanStatus('Choose a photo of a barcode.',true);return;}
+    if(file.size>25*1024*1024){setScanStatus('Image is too large. Select a photo under 25 MB.',true);return;}
+    ui.photoBusy=true;
+    setScanStatus('Reading barcode from photo…');
+    try{
+      await stopCamera();await loadScannerDecoder();
+      const instance=new Html5Qrcode('camera-reader',{formatsToSupport:scannerFormats(),verbose:false});
+      let code;
+      try{code=await instance.scanFile(file,true);}
+      finally{try{await instance.clear();}catch(e){}}
+      if(!/^\d{8,14}$/.test(String(code||'').trim())){
+        setScanStatus('No food barcode found. Try a sharper photo or type the number.',true);return;
+      }
+      ui.scanDetected=true;ui.photoBusy=false;
+      await lookupBarcode(code);
+    }catch(e){
+      setScanStatus('Could not read the barcode photo. Try brighter light or type the number.',true);
+    }finally{
+      ui.photoBusy=false;
+      const input=$('#scanner-photo-input');if(input)input.value='';
+    }
   }
 
   const PORTION_UNITS={
@@ -736,6 +808,7 @@
     if(ev.target.closest('#header-settings')) {await openSettingsModal();return;}
     if(ev.target.closest('#close-settings')) {closeSettingsModal();return;}
     if(ev.target.closest('#scan-barcode')) {await startCamera();return;}
+    if(ev.target.closest('#scan-photo')){$('#scanner-photo-input')?.click();return;}
     if(ev.target.closest('#close-scanner')||ev.target.closest('#cancel-scanner')){await cancelScan();return;}
     if(ev.target.closest('#close-product')){closeProduct();return;}
     if(ev.target.closest('#close-manual')||ev.target.closest('#cancel-manual')){closeManual();return;}
@@ -765,6 +838,15 @@
     if(target.id==='meal-select'){ui.meal=target.value;}
     if(target.id==='portion-unit'){changeServingUnit(target.value);}
     if(target.id==='auto-balance'){ui.autoBalance=target.checked;refreshMacroBudget(target.form || $('#goal-form'),'carbs');}
+    if(target.id==='scanner-photo-input'&&target.files?.[0])void scanBarcodePhoto(target.files[0]);
+    if(target.id==='scanner-camera-choice'&&scannerIsOpen()){
+      const chosen=String(target.value||'');
+      if(chosen!==ui.cameraDeviceId){
+        ui.cameraDeviceId=chosen;ui.scanDetected=false;
+        setScanStatus('Switching camera…');
+        void (async()=>{await stopCamera();if(scannerIsOpen())await startCamera(chosen);})();
+      }
+    }
   });
   document.addEventListener('input',(ev)=>{
     if(ev.target.closest?.('#goal-form') && ['kcal','protein','carbs','fat'].includes(ev.target.name)) refreshMacroBudget(ev.target.form || $('#goal-form'),ev.target.name);
