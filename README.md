@@ -21,7 +21,7 @@ A **completely separate** test app for a possible future nutrition feature in Sp
 5. Tap **Scan → Start camera**, allow camera permission, and aim at a supermarket barcode.
 6. Try manual lookup with `3017620422003` (the Open Food Facts example) and create a food with **+ Create food**.
 
-**Why GitHub Pages?** iPhone browsers only allow live camera access on secure origins (HTTPS or localhost). Opening the downloaded HTML via Files may display the interface but camera access may fail. You need internet to load the scanner library and obtain Open Food Facts records.
+**Why GitHub Pages?** iPhone browsers only allow live camera access on secure origins (HTTPS or localhost). Opening the downloaded HTML via Files may display the interface but camera access may fail. The barcode decoder is bundled locally; an internet connection is still required to look up products in Open Food Facts.
 
 ## Accuracy and data limitations
 
@@ -35,7 +35,7 @@ A **completely separate** test app for a possible future nutrition feature in Sp
 
 ## Architecture
 
-Static files: `index.html`, `styles.css`, `app.js`. No npm install or build tool needed. Camera decoding uses `html5-qrcode@2.3.8` from cdnjs (Apache-2.0). Product lookups use the Open Food Facts v3 endpoint.
+Static files: `index.html`, `styles.css`, `app.js`. No npm install or build tool needed. Camera decoding uses a pinned local copy of `html5-qrcode@2.3.8` (`vendor/html5-qrcode.min.js`, Apache-2.0, with its license included). External CDN downloads are only fallback options. Product lookups use the Open Food Facts v3 endpoint.
 
 ## Licence and credits
 
@@ -95,3 +95,11 @@ This is a prototype for testing, not a validated dietary analysis or a live prod
 - Refreshing loads the current page with a cache-busting `_refresh` query parameter. The existing browser localStorage key, logged foods, diary entries, themes and targets are not reset or cleared.
 - The gesture is implemented in the Home Screen web app itself, because not every installed iPhone web app exposes Safari's native pull-to-refresh.
 - **One-time installation note:** An already-open v0.7 app cannot run the new gesture until v0.8 has first been loaded. If necessary, open the live URL in Safari and reload it once, then reopen the Home Screen app. Do not clear website data.
+
+## Barcode scanner reliability update — v1.1
+
+- Loads the scanner decoder from this repository (instead of relying on a cross-origin script for normal operation).
+- Rear camera scans EAN-13, EAN-8, UPC-A and UPC-E food barcodes automatically, with CODE-128 decoding available for compatible numeric codes.
+- Camera options allow selecting another rear lens when iPhone macro/close focus is poor. Supported browsers may use continuous autofocus and mild zoom.
+- **Use a barcode photo** lets the user take or select a clear image for decoding when live video detection fails. Manual entry is still available.
+- The iPhone scanner and camera choice have passed mocked flow tests, but physical-device focus and performance must still be confirmed on an iPhone.
